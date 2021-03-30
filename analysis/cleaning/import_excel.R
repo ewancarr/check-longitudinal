@@ -14,16 +14,16 @@ source(here("analysis", "functions.R"))
 
 # Import Excel files ----------------------------------------------------------
 
-latest <- "2021-02-02"
+latest <- "2021-03-30"
 
 import_raw <- function(path, ctypes) {
-    # Import once, to get variable names only (NOTE: n_max)
+    # Import once, to get variable names only
     cname <- read_xlsx(path,
                        n_max = 1,
                        col_types = "text",
                        guess_max = 0) %>%
         names()
-    # Import again to get data (NOTE: skip)
+    # Import again to get data
     raw <- read_xlsx(path,
                      col_names = cname,
                      skip = 2,
@@ -116,6 +116,19 @@ aw <- aw %>%
     arrange(pid, t) %>%
     select(pid, t, pid_str, login_id, extref, everything())
 
+# Create variable identifying 2-monthly questionnaires ------------------------
+
+qtypes <- ar %>%
+    map_dfr(ncol, .id = "period") %>%
+    gather(period, ncol) %>%
+    mutate(qlong = ncol > 100,
+           tid = if_else(str_detect(period, "baseline"), 
+                         "0-period", period)) %>%
+    select(tid, qlong) %>%
+    distinct()
+
+aw <- aw %>%
+    left_join(qtypes, by = "tid")
 
 ###############################################################################
 ####                                                                      #####
