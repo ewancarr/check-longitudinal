@@ -1,2 +1,4 @@
 data/*
 .here
+renv
+*.Rprofile
