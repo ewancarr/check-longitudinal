@@ -114,6 +114,21 @@ table(aw$interview_week, aw$t)
 aw$is_staff <- str_detect(aw$role, "staff")
 aw$age <- as.numeric(aw$age)
 
+# Gender ----------------------------------------------------------------------
+
+# As in baseline paper, we're randomly assigning "Other" to either "Female" or
+# "Male" based on sample proportions.
+
+p_female <- prop.table(table(aw$gender))[1]
+
+aw$female <- aw$gender == "Female"
+aw$female[is.na(aw$gender)] <- NA
+to_replace <- aw$gender %in% c("Other", "Prefer not to say")
+aw$female[to_replace] <- sample(c("Female", "Male"),
+                                size = sum(to_replace),
+                                prob = c(p_female, 1 - p_female),
+                                replace = TRUE)
+
 # Ethnicity -------------------------------------------------------------------
 
 aw <- aw %>%
@@ -169,7 +184,7 @@ aw <- aw %>%
 aw <- aw %>%
     group_by(pid) %>%
     arrange(pid, iw) %>%
-    fill(ethnic_group, ethnic_f, age, gender, role, is_staff,
+    fill(ethnic_group, ethnic_f, age, gender, female, role, is_staff,
          .direction = "down")
 
 # Select required measures ----------------------------------------------------
@@ -180,7 +195,7 @@ sel <- aw %>%
            interview_week,
            is_staff,
            age,
-           gender, 
+           gender, female,
            ethnic_f,
            start = start_date,
            end = end_date,
