@@ -105,6 +105,25 @@ aw <- aw %>%
 
 table(aw$interview_week, aw$t)
 
+# Remove duplicates by week ---------------------------------------------------
+
+# NOTE: We already did this, above, for 't'. But we need to do it again because
+# when translating from "survey period" to "interview week", some individuals 
+# could respond more than once per week, as shown below:
+
+aw %>%
+    group_by(pid, iw) %>%
+    mutate(n = n(),
+           t = t,
+           interview_week = interview_week,
+           recorded_date = recorded_date) %>%
+    select(pid, t, iw, interview_week, recorded_date, n) %>%
+    group_by(pid) %>%
+    filter(max(n) > 1)
+
+aw <- aw %>%
+    distinct(pid, iw, .keep_all = TRUE)
+
 ###############################################################################
 ####                                                                      #####
 ####                        CLEAN REQUIRED MEASURES                       #####
@@ -122,10 +141,9 @@ aw$age <- as.numeric(aw$age)
 p_female <- prop.table(table(aw$gender))[1]
 
 aw$female <- aw$gender == "Female"
-aw$female[is.na(aw$gender)] <- NA
 to_replace <- aw$gender %in% c("Other", "Prefer not to say")
-aw$female[to_replace] <- sample(c("Female", "Male"),
-                                size = sum(to_replace),
+aw$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
+                                size = sum(to_replace),     # FALSE = male
                                 prob = c(p_female, 1 - p_female),
                                 replace = TRUE)
 
@@ -202,10 +220,18 @@ sel <- aw %>%
            excluded, max_wave,
            starts_with("phq_item"),
            starts_with("gad_item"),
-           phq_total,
-           gad_total)
+           phq = phq_total,
+           gad = gad_total)
 
-save(sel, aw, dupes,
+# Check analysis dataset is unique by "pid" and "iw"
+sel %>%
+    group_by(pid, iw) %>%
+    mutate(n = n()) %>%
+    filter(n > 1)
+
+# Save longitudinal dataset ---------------------------------------------------
+
+save(sel, aw,
      file = here("data", "clean", "rep.Rdata"))
 
 # Save baseline dataset -------------------------------------------------------
