@@ -2,3 +2,4 @@ data/*
 .here
 renv
 *.Rprofile
+.directory
