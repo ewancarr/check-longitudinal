@@ -96,16 +96,19 @@ gaps %>%
     arrange(min_gap) %>%
     print(n = 200)
 
-# Create 'week number' -------------------------------------------------------
+# Create 'week number' and 'fortnight number' --------------------------------
 
 aw <- aw %>%
-    mutate(interview_week = round_date(recorded_date, unit = "week",
+    mutate(interview_week = round_date(recorded_date,
+                                       unit = weeks(1),
                                        week_start = 1),
-           iw = as.numeric(as.factor(interview_week)))
+           interview_fortnight = round_date(recorded_date,
+                                            unit = weeks(2),
+                                            week_start = 1),
+           iw = as.numeric(as.factor(interview_week)),
+           ifn = as.numeric(as.factor(interview_fortnight)))
 
-table(aw$interview_week, aw$t)
-
-# Remove duplicates by week ---------------------------------------------------
+# Remove duplicates by week
 
 # NOTE: We already did this, above, for 't'. But we need to do it again because
 # when translating from "survey period" to "interview week", some individuals 
@@ -119,10 +122,24 @@ aw %>%
            recorded_date = recorded_date) %>%
     select(pid, t, iw, interview_week, recorded_date, n) %>%
     group_by(pid) %>%
-    filter(max(n) > 1)
+    filter(max(n) > 1) %>%
+    print(n = 1000)
+
+aw %>%
+    group_by(pid, ifn) %>%
+    mutate(n = n(),
+           t = t,
+           interview_week = interview_week,
+           recorded_date = recorded_date) %>%
+    select(pid, t, ifn, interview_fortnight, recorded_date, n) %>%
+    group_by(pid) %>%
+    filter(max(n) > 1) %>%
+    print(n = 100)
+
 
 aw <- aw %>%
-    distinct(pid, iw, .keep_all = TRUE)
+    distinct(pid, ifn, .keep_all = TRUE)
+
 
 ###############################################################################
 ####                                                                      #####
@@ -210,6 +227,8 @@ sel <- aw %>%
     select(pid,
            t,
            iw,
+           ifn,
+           interview_fortnight,
            interview_week,
            is_staff,
            age,
