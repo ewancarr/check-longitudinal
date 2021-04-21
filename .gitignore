@@ -3,3 +3,4 @@ data/*
 renv
 *.Rprofile
 .directory
+*.simg
