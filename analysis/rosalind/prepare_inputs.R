@@ -80,7 +80,12 @@ cubic growth using (1) and (2) with increasing numbers of classes and examine
 model fit.
 "
 
-make_input <- function(dpath, y, classes, model) {
+make_input <- function(dpath,
+                       y,
+                       classes,
+                       model,
+                       starts = FALSE,
+                       boot = FALSE) {
     # Get number of time points from input file
     ifn <- str_split(input_file[4], " ") %>%
         unlist() %>%
@@ -94,13 +99,22 @@ make_input <- function(dpath, y, classes, model) {
     end <- nth(ifn, -1)
     pad <- function(x) sprintf("%.2d", x)
     # Get "NAMES" statement from input file
-    vn <- input_file[4]
+    vn <- str_wrap(str_squish(input_file[4]), 40)
     # Define right-hand side of growth curve
-    right_side <- str_wrap(paste(y, pad(start:end), "@", (start:end) - 1, sep = "", collapse = " "), 40)
+    right_side <- str_wrap(str_squish(paste(y, pad(start:end), "@", (start:end) - 1, sep = "", collapse = " ")), 40)
     # Define constraints
     constraints <- case_when(model == "lcga" ~ "int-cubic@0",
                              model == "gmm" ~ "cubic@0")
+    # Define title
     title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
+    # Define 'use variables'
+    uv <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
+    # Define plot SERIES
+    series <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
+    # Define STARTS and LRT bootstrap
+    st <- ifelse(starts, "STARTS = 500 10;\nSTITERATIONS = 10;", "") 
+    lrt <- ifelse(boot, "LRTBOOTSTRAP = 50;", "")
+    tech14 = ifelse(boot, "TECH14", "")
     # Generate the model
     return(str_glue("
     TITLE: {title}
@@ -113,30 +127,38 @@ make_input <- function(dpath, y, classes, model) {
     MISSING=.;
     ANALYSIS:
     TYPE = MIXTURE;
-    STARTS = 500 10;
-    STITERATIONS  10;
-    LRTBOOTSTRAP = 50;
-    ALGORITHM = INTEGRATION;
-    ESTIMATOR = MLR;
+    {st}
+    {lrt}
+    ! ALGORITHM = INTEGRATION;
+    ! ESTIMATOR = MLR;
     MODEL:
     %OVERALL%
     int linear quad cubic | {right_side};
     {constraints};
     OUTPUT:
-    SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 TECH14;
+    SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 {tech14};
     PLOT:
     TYPE IS PLOT1 PLOT2 PLOT3;
-    SERIES IS {uv} (*);
+    SERIES IS {series} (*);
     "))
 }
 
-inputs <- list(dpath = "analysis/rosalind/data/check.dat",
+
+inputs <- list(dpath = "../data/check.dat",
                y = c("gad", "phq"),
                classes = 2:10,
                model = c("lcga", "gmm")) %>%
     cross() %>%
     map(~ exec(make_input, !!!.x))
 
-walk2(inputs, 1:length(inputs),
-     ~ writeLines(.x, here("analysis", "rosalind", "fits", .y)))
+# Delete 
+
+walk2(inputs, 1:length(inputs), function(m, f) {
+     fp <- here("analysis", "rosalind", "fits", f)
+     if (file_exists(fp)) {
+         file_delete(fp)
+     }
+     writeLines(m, fp)
+   }
+)
 
