@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=brc
-#SBATCH --tasks=8
-#SBATCH --mem=8000
+#SBATCH --tasks=4
+#SBATCH --mem=4000
 #SBATCH --job-name=array
 #SBATCH --array=1-36
 #SBATCH --output=/scratch/users/%u/check-longitudinal/analysis/rosalind/logs/%a.out
