@@ -1,0 +1,43 @@
+TITLE: LCGA model for GAD, 6 classes
+DATA: FILE = ../data/check_wide.dat;
+VARIABLE: 
+NAMES = pid age female gad00 gad03 gad05
+gad07 gad09 gad11 gad13 gad15 gad17
+gad19 gad21 gad23 gad25 gad27 gad29
+gad31 gad33 gad35 gad37 gad39 gad41
+gad43 gad45 gad47 phq00 phq03 phq05
+phq07 phq09 phq11 phq13 phq15 phq17
+phq19 phq21 phq23 phq25 phq27 phq29
+phq31 phq33 phq35 phq37 phq39 phq41
+phq43 phq45 phq47; 
+USEVARIABLES = gad00-gad47;
+CLASSES = C(6);
+IDVARIABLE = pid;
+MISSING=.;
+ANALYSIS:
+TYPE = MIXTURE; 
+STARTS = 100 20;
+ 
+MODEL:
+%OVERALL%
+i s q c | gad00@0 gad01@1 gad02@2 gad03@3 gad04@4
+gad05@5 gad06@6 gad07@7 gad08@8 gad09@9
+gad10@10 gad11@11 gad12@12 gad13@13
+gad14@14 gad15@15 gad16@16 gad17@17
+gad18@18 gad19@19 gad20@20 gad21@21
+gad22@22 gad23@23 gad24@24 gad25@25
+gad26@26 gad27@27 gad28@28 gad29@29
+gad30@30 gad31@31 gad32@32 gad33@33
+gad34@34 gad35@35 gad36@36 gad37@37
+gad38@38 gad39@39 gad40@40 gad41@41
+gad42@42 gad43@43 gad44@44 gad45@45
+gad46@46 gad47@47;
+i-c@0;
+OUTPUT:
+SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
+PLOT:
+TYPE IS PLOT1 PLOT2 PLOT3;
+SERIES IS gad00-gad47 (*);
+SAVEDATA: 
+FILE = save19.dat;
+SAVE = CPROBABILITIES;
