@@ -20,18 +20,12 @@ STARTS = 100 20;
  
 MODEL:
 %OVERALL%
-i s q | gad00@0 gad01@1 gad02@2 gad03@3 gad04@4
-gad05@5 gad06@6 gad07@7 gad08@8 gad09@9
-gad10@10 gad11@11 gad12@12 gad13@13
-gad14@14 gad15@15 gad16@16 gad17@17
-gad18@18 gad19@19 gad20@20 gad21@21
-gad22@22 gad23@23 gad24@24 gad25@25
-gad26@26 gad27@27 gad28@28 gad29@29
-gad30@30 gad31@31 gad32@32 gad33@33
-gad34@34 gad35@35 gad36@36 gad37@37
-gad38@38 gad39@39 gad40@40 gad41@41
-gad42@42 gad43@43 gad44@44 gad45@45
-gad46@46 gad47@47;
+i s q | gad00@0 gad03@3 gad05@5 gad07@7 gad09@9
+gad11@11 gad13@13 gad15@15 gad17@17
+gad19@19 gad21@21 gad23@23 gad25@25
+gad27@27 gad29@29 gad31@31 gad33@33
+gad35@35 gad37@37 gad39@39 gad41@41
+gad43@43 gad45@45 gad47@47;
 i-q@0;
 OUTPUT:
 SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
