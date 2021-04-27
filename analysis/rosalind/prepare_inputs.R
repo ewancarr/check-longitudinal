@@ -68,18 +68,19 @@ wide_data %>%
     as.data.frame()
 
 # Export, create input file ---------------------------------------------------
-input_file <- prepareMplusData(wide_data,
-                               filename = here("analysis",
-                                               "rosalind",
-                                               "data",
-                                               "check.dat"))
 
-writeLines(input_file, here("analysis",
-                            "rosalind",
-                            "data",
-                            "check.inp"))
+prep <- function(dat, stub, p) {
+    input_file <- prepareMplusData(dat,
+                                   filename = paste0(p, "/", stub, ".dat"))
+    writeLines(input_file, paste0(p, "/", stub, ".inp"))
+    return(input_file)
+}
 
-
+input_file <- map2(list(wide_data, long_data),
+      c("check_wide", "check_long"),
+      prep,
+      p = here("analysis", "rosalind", "data"))
+names(input_file) <- c("wide", "long")
 
 ###############################################################################
 ####                                                                      #####
