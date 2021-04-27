@@ -5,3 +5,4 @@ renv
 .directory
 *.simg
 analysis/rosalind/data/*
+*.ipynb_checkpoints
