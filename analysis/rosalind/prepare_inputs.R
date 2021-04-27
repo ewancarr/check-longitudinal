@@ -8,7 +8,6 @@ library(fs)
 library(MplusAutomation)
 
 load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
-# load(here("data", "clean", "sdf.Rdata"), verbose = TRUE)
 
 ###############################################################################
 ####                                                                      #####
@@ -18,46 +17,32 @@ load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
 
 # Reshape outcomes to WIDE format ---------------------------------------------
 
-sel
-
 wide_data <- sel %>%
-    group_by(pid, ifn) %>%
-    filter(# Check data is unique by individual and fortnight
-           n() == 1, 
-           # Remove the first fortnight, because very few completed this
-           # and it causes problems in Mplus.
-           ifn > 1) %>%
+    group_by(pid, dap) %>%
+    filter(# Check data is unique by individual and survey period
+           n() == 1) %>%
     select(# ID variables
-           pid, ifn,
+           pid, dap,
            # Individual-level variables
-           gad, phq, 
-           # Contextual variables
-           dth = deaths28, 
-           hcase = hospital_cases,
-           nadmit = new_admissions) %>%
+           gad, phq) %>%
     ungroup() %>%
-    gather(k, v, -pid, -ifn) %>%
-    mutate(k = paste0(k, sprintf("%02d", ifn))) %>%
-    select(-ifn) %>%
+    gather(k, v, -pid, -dap) %>%
+    mutate(k = paste0(k, sprintf("%02d", dap))) %>%
+    select(-dap) %>%
     spread(k, v)
 
 # Alternative: reshape outcomes to LONG format --------------------------------
 
 long_data <- sel %>%
-    select(pid, ifn,
-           age, female, is_staff,
-           phq, gad,
-           dth = deaths28,
-           hcase = hospital_cases,
-           nadmit = new_admissions)
+    select(pid, dap, age, female, is_staff, phq, gad)
     
 # Add baseline variables ------------------------------------------------------
 
 bl <- sel %>%
-    select(pid, ifn, age, female) %>%
-    arrange(pid, ifn) %>%
+    select(pid, dap, age, female) %>%
+    arrange(pid, dap) %>%
     group_by(pid) %>%
-    summarise(across(c(age, female) , first))
+    summarise(across(c(age, female), first))
 
 wide_data <- inner_join(bl, wide_data, by = "pid")
 
@@ -77,9 +62,9 @@ prep <- function(dat, stub, p) {
 }
 
 input_file <- map2(list(wide_data, long_data),
-      c("check_wide", "check_long"),
-      prep,
-      p = here("analysis", "rosalind", "data"))
+                   c("check_wide", "check_long"),
+                   prep,
+                   p = here("analysis", "rosalind", "data"))
 names(input_file) <- c("wide", "long")
 
 ###############################################################################
@@ -109,7 +94,7 @@ make_input <- function(dpath,
                        starts = FALSE,
                        boot = FALSE) {
     # Get number of time points from input file
-    ifn <- str_split(names_statement, " ") %>%
+    dap <- str_split(names_statement, " ") %>%
         unlist() %>%
         map_chr(str_trim) %>%
         keep(~ str_detect(.x, "[0-9]{2}$")) %>%
@@ -117,13 +102,13 @@ make_input <- function(dpath,
         unique() %>%
         sort() 
     # Get first/last time point
-    start <- nth(ifn, 1)
-    end <- nth(ifn, -1)
+    start <- nth(dap, 1)
+    end <- nth(dap, -1)
     pad <- function(x) sprintf("%.2d", x)
     # Get "NAMES" statement from input file
     vn <- str_wrap(str_squish(names_statement), 40)
     # Define right-hand side of growth curve
-    right_side <- str_wrap(str_squish(paste(y, pad(start:end), "@", (start:end) - 1, sep = "", collapse = " ")), 40)
+    right_side <- str_wrap(str_squish(paste(y, pad(start:end), "@", (start:end), sep = "", collapse = " ")), 40)
     # Define title
     title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
     # Define 'use variables'
@@ -166,15 +151,14 @@ make_input <- function(dpath,
     "))
 }
 
-
-inputs <- list(dpath = "../data/check_wide.dat",
-               y = c("gad", "phq"),
-               form = c("quadratic", "cubic"),
+inputs <- list(dpath           = "../data/check_wide.dat",
+               y               = c("gad", "phq"),
+               form            = c("quadratic", "cubic"),
                names_statement = input_file$wide[4],
-               classes = 2:12,
-               starts = TRUE,
-               boot = FALSE,
-               model = c("lcga", "gmm")) %>%
+               classes         = 2:12,
+               starts          = TRUE,
+               boot            = FALSE,
+               model           = c("lcga", "gmm")) %>%
     cross() %>%
     map(~ exec(make_input, !!!.x))
 
