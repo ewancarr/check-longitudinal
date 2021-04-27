@@ -104,10 +104,12 @@ make_input <- function(dpath,
                        y,
                        classes,
                        model,
+                       form = "quadratic",
+                       names_statement,
                        starts = FALSE,
                        boot = FALSE) {
     # Get number of time points from input file
-    ifn <- str_split(input_file[4], " ") %>%
+    ifn <- str_split(names_statement, " ") %>%
         unlist() %>%
         map_chr(str_trim) %>%
         keep(~ str_detect(.x, "[0-9]{2}$")) %>%
@@ -119,12 +121,9 @@ make_input <- function(dpath,
     end <- nth(ifn, -1)
     pad <- function(x) sprintf("%.2d", x)
     # Get "NAMES" statement from input file
-    vn <- str_wrap(str_squish(input_file[4]), 40)
+    vn <- str_wrap(str_squish(names_statement), 40)
     # Define right-hand side of growth curve
     right_side <- str_wrap(str_squish(paste(y, pad(start:end), "@", (start:end) - 1, sep = "", collapse = " ")), 40)
-    # Define constraints
-    constraints <- case_when(model == "lcga" ~ "int-cubic@0",
-                             model == "gmm" ~ "cubic@0")
     # Define title
     title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
     # Define 'use variables'
@@ -132,9 +131,17 @@ make_input <- function(dpath,
     # Define plot SERIES
     series <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
     # Define STARTS and LRT bootstrap
-    st <- ifelse(starts, "STARTS = 500 10;\nSTITERATIONS = 10;", "") 
+    st <- ifelse(starts, "\nSTARTS = 100 20;\n", "") 
     lrt <- ifelse(boot, "LRTBOOTSTRAP = 50;", "")
     tech14 = ifelse(boot, "TECH14", "")
+    # Define functional form
+    ff <- case_when(form == "quadratic" ~ "i s q",
+                    form == "cubic" ~ "i s q c")
+    # Define constraints
+    constraints <- case_when(model == "lcga" & form == "quadratic" ~ "i-q@0",
+                             model == "lcga" & form == "cubic" ~ "i-c@0",
+                             model == "gmm" & form == "quadratic" ~ "",
+                             model == "gmm" & form == "cubic" ~ "c@0")
     # Generate the model
     return(str_glue("
     TITLE: {title}
@@ -146,14 +153,10 @@ make_input <- function(dpath,
     IDVARIABLE = pid;
     MISSING=.;
     ANALYSIS:
-    TYPE = MIXTURE;
-    {st}
-    {lrt}
-    ! ALGORITHM = INTEGRATION;
-    ! ESTIMATOR = MLR;
+    TYPE = MIXTURE; {st} {lrt}
     MODEL:
     %OVERALL%
-    int linear quad cubic | {right_side};
+    {ff} | {right_side};
     {constraints};
     OUTPUT:
     SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 {tech14};
@@ -164,9 +167,13 @@ make_input <- function(dpath,
 }
 
 
-inputs <- list(dpath = "../data/check.dat",
+inputs <- list(dpath = "../data/check_wide.dat",
                y = c("gad", "phq"),
-               classes = 2:10,
+               form = c("quadratic", "cubic"),
+               names_statement = input_file$wide[4],
+               classes = 2:12,
+               starts = TRUE,
+               boot = FALSE,
                model = c("lcga", "gmm")) %>%
     cross() %>%
     map(~ exec(make_input, !!!.x))
