@@ -8,7 +8,7 @@ library(fs)
 library(MplusAutomation)
 
 load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
-load(here("data", "clean", "sdf.Rdata"), verbose = TRUE)
+# load(here("data", "clean", "sdf.Rdata"), verbose = TRUE)
 
 ###############################################################################
 ####                                                                      #####
@@ -16,25 +16,44 @@ load(here("data", "clean", "sdf.Rdata"), verbose = TRUE)
 ####                                                                      #####
 ###############################################################################
 
-sdf$female <- sdf$female == "TRUE"
-
 # Reshape outcomes to WIDE format ---------------------------------------------
 
-wide_data <- sdf %>%
+sel
+
+wide_data <- sel %>%
     group_by(pid, ifn) %>%
-    filter(n() == 1,
+    filter(# Check data is unique by individual and fortnight
+           n() == 1, 
+           # Remove the first fortnight, because very few completed this
+           # and it causes problems in Mplus.
            ifn > 1) %>%
-    select(pid, ifn, gadnorm100, phqnorm100) %>%
+    select(# ID variables
+           pid, ifn,
+           # Individual-level variables
+           gad, phq, 
+           # Contextual variables
+           dth = deaths28, 
+           hcase = hospital_cases,
+           nadmit = new_admissions) %>%
     ungroup() %>%
     gather(k, v, -pid, -ifn) %>%
-    mutate(k = str_replace(k, "norm100", ""),
-           k = paste0(k, sprintf("%02d", ifn))) %>%
+    mutate(k = paste0(k, sprintf("%02d", ifn))) %>%
     select(-ifn) %>%
     spread(k, v)
 
+# Alternative: reshape outcomes to LONG format --------------------------------
+
+long_data <- sel %>%
+    select(pid, ifn,
+           age, female, is_staff,
+           phq, gad,
+           dth = deaths28,
+           hcase = hospital_cases,
+           nadmit = new_admissions)
+    
 # Add baseline variables ------------------------------------------------------
 
-bl <- sdf %>%
+bl <- sel %>%
     select(pid, ifn, age, female) %>%
     arrange(pid, ifn) %>%
     group_by(pid) %>%
