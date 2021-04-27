@@ -5,6 +5,7 @@
 library(tidyverse)
 library(lubridate)
 library(here)
+library(readxl)
 noisy <- FALSE
 load(here("data", "clean", "aw.Rdata"), verbose = TRUE)
 
@@ -43,7 +44,7 @@ aw %>%
     mutate(n = n()) %>%
     filter(n > 1) 
 
-# Pick a single entry per person/time
+# Pick a single entry per person/survey period
 aw <- distinct(aw, pid, t, .keep_all = TRUE)
     # NOTE: This is selecting the FIRST row in the case of duplicates.
     #       This might not be ideal -- e.g. we should select the most complete
@@ -65,80 +66,112 @@ aw <- aw %>%
     full_join(aw, by = "pid") %>%
     filter(n_entries > 1)
 
+
+# Convert 'survey period' into a measure of time ------------------------------
+
+table(aw$t)
+
+# The 't' variable is based on the filename of each dataset.
+# t = 0 = '0-period.xlsx'
+# t = 1 = '1-period.xlsx' and so on.
+# The gaps between period 0, 1, 2 etc. is inconsistent. So, we want to create
+# another time variable that maps "survey period" onto a "week number". I'll
+# use the master tracker for this.
+
+tracker <- read_xlsx(here("data", "raw", "survey", "master_tracker.xlsx"),
+          sheet = "Schedule",
+          range = "A1:D41") %>%
+    mutate(gap = interval(`Date...1`, `Date...4`) / days(1),
+           midpoint = `Date...1` + days(round(gap / 2))) %>%
+    select(batch = `Batch 1`, midpoint)
+
+# Get date for baseline (0-period); TODO: query, this isn't in tracker?
+bl_date <- aw %>%
+    filter(t == 0) %>%
+    summarise(midpoint = min(start_date) + (interval(min(start_date),
+                                                      max(start_date)) / days(1))) %>%
+    mutate(batch = 0)
+
+tracker <- bind_rows(bl_date, tracker) %>%
+    mutate(delta = interval(min(midpoint), midpoint) / weeks(1),
+           # Get approx. delta, because decimal timing is awkward
+           dap = round(delta)) 
+
+aw <- left_join(aw, tracker, by = c("t" = "batch"))
+
 ###############################################################################
 ####                                                                      #####
 ####                                 DATES                                #####
 ####                                                                      #####
 ###############################################################################
 
-if (noisy) {
-    ggplot(aw,
-           aes(x = start_date)) +
-        geom_histogram(bins = 50) +
-        facet_wrap(~ t, scales = "free_x")
-}
+# if (noisy) {
+#     ggplot(aw,
+#            aes(x = start_date)) +
+#         geom_histogram(bins = 50) +
+#         facet_wrap(~ t, scales = "free_x")
+# }
 
-# Check gaps between successive questionnaires --------------------------------
+# # Check gaps between successive questionnaires --------------------------------
 
-gaps <- aw %>%
-    select(pid, pid_str, t, recorded_date) %>%
-    arrange(pid, t) %>%
-    group_by(pid) %>%
-    mutate(gap = if_else(t == lag(t) + 1,
-                         interval(lag(recorded_date), recorded_date) / days(1),
-                         NA_real_),
-           min_gap = min(gap, na.rm = TRUE))
+# gaps <- aw %>%
+#     select(pid, pid_str, t, recorded_date) %>%
+#     arrange(pid, t) %>%
+#     group_by(pid) %>%
+#     mutate(gap = if_else(t == lag(t) + 1,
+#                          interval(lag(recorded_date), recorded_date) / days(1),
+#                          NA_real_),
+#            min_gap = min(gap, na.rm = TRUE))
 
-table(gaps$gap < 7)
+# table(gaps$gap < 7)
 
-gaps %>%
-    filter(!is.nan(min_gap)) %>%
-    arrange(min_gap) %>%
-    print(n = 200)
+# gaps %>%
+#     filter(!is.nan(min_gap)) %>%
+#     arrange(min_gap) %>%
+#     print(n = 200)
 
-# Create 'week number' and 'fortnight number' --------------------------------
+# # Create 'week number' and 'fortnight number' --------------------------------
 
-aw <- aw %>%
-    mutate(interview_week = round_date(recorded_date,
-                                       unit = weeks(1),
-                                       week_start = 1),
-           interview_fortnight = round_date(recorded_date,
-                                            unit = weeks(2),
-                                            week_start = 1),
-           iw = as.numeric(as.factor(interview_week)),
-           ifn = as.numeric(as.factor(interview_fortnight)))
+# aw <- aw %>%
+#     mutate(interview_week = round_date(recorded_date,
+#                                        unit = weeks(1),
+#                                        week_start = 1),
+#            interview_fortnight = round_date(recorded_date,
+#                                             unit = weeks(2),
+#                                             week_start = 1),
+#            iw = as.numeric(as.factor(interview_week)),
+#            ifn = as.numeric(as.factor(interview_fortnight)))
 
-# Remove duplicates by week
+# # Remove duplicates by week
 
-# NOTE: We already did this, above, for 't'. But we need to do it again because
-# when translating from "survey period" to "interview week", some individuals 
-# could respond more than once per week, as shown below:
+# # NOTE: We already did this, above, for 't'. But we need to do it again because
+# # when translating from "survey period" to "interview week", some individuals 
+# # could respond more than once per week, as shown below:
 
-aw %>%
-    group_by(pid, iw) %>%
-    mutate(n = n(),
-           t = t,
-           interview_week = interview_week,
-           recorded_date = recorded_date) %>%
-    select(pid, t, iw, interview_week, recorded_date, n) %>%
-    group_by(pid) %>%
-    filter(max(n) > 1) %>%
-    print(n = 1000)
+# aw %>%
+#     group_by(pid, iw) %>%
+#     mutate(n = n(),
+#            t = t,
+#            interview_week = interview_week,
+#            recorded_date = recorded_date) %>%
+#     select(pid, t, iw, interview_week, recorded_date, n) %>%
+#     group_by(pid) %>%
+#     filter(max(n) > 1) %>%
+#     print(n = 1000)
 
-aw %>%
-    group_by(pid, ifn) %>%
-    mutate(n = n(),
-           t = t,
-           interview_week = interview_week,
-           recorded_date = recorded_date) %>%
-    select(pid, t, ifn, interview_fortnight, recorded_date, n) %>%
-    group_by(pid) %>%
-    filter(max(n) > 1) %>%
-    print(n = 100)
+# aw %>%
+#     group_by(pid, ifn) %>%
+#     mutate(n = n(),
+#            t = t,
+#            interview_week = interview_week,
+#            recorded_date = recorded_date) %>%
+#     select(pid, t, ifn, interview_fortnight, recorded_date, n) %>%
+#     group_by(pid) %>%
+#     filter(max(n) > 1) %>%
+#     print(n = 100)
 
-
-aw <- aw %>%
-    distinct(pid, ifn, .keep_all = TRUE)
+# aw <- aw %>%
+#     distinct(pid, ifn, .keep_all = TRUE)
 
 
 ###############################################################################
@@ -218,7 +251,7 @@ aw <- aw %>%
 
 aw <- aw %>%
     group_by(pid) %>%
-    arrange(pid, iw) %>%
+    arrange(pid, dap) %>%
     fill(ethnic_group, ethnic_f, age, gender, female, role, is_staff,
          .direction = "down")
 
@@ -226,10 +259,7 @@ aw <- aw %>%
 sel <- aw %>%
     select(pid,
            t,
-           iw,
-           ifn,
-           interview_fortnight,
-           interview_week,
+           dap,
            is_staff,
            age,
            gender, female,
@@ -244,9 +274,28 @@ sel <- aw %>%
 
 # Check analysis dataset is unique by "pid" and "iw"
 sel %>%
-    group_by(pid, iw) %>%
+    group_by(pid, dap) %>%
     mutate(n = n()) %>%
     filter(n > 1)
+
+
+###############################################################################
+####                                                                      #####
+####                         Merge contextual data                        #####
+####                                                                      #####
+###############################################################################
+
+# load(here("data", "raw", "contextual", "gov_d1.Rdata"), verbose = TRUE)
+
+# d1 <- d1 %>%
+#     mutate(interview_fortnight = round_date(date,
+#                                             unit = weeks(2),
+#                                             week_start = 1)) %>%
+#     group_by(interview_fortnight) %>%
+#     summarise(across(deaths28:new_cases, sum, na.rm = TRUE))
+
+# sel <- sel %>%
+#     left_join(d1, by = "interview_fortnight")
 
 # Save longitudinal dataset ---------------------------------------------------
 

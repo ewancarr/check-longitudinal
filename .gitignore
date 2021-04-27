@@ -4,3 +4,4 @@ renv
 *.Rprofile
 .directory
 *.simg
+analysis/rosalind/data/*
