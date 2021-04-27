@@ -178,8 +178,11 @@ inputs <- list(dpath = "../data/check_wide.dat",
     cross() %>%
     map(~ exec(make_input, !!!.x))
 
-# Delete 
+# Add "SAVEDATA" statement
+inputs <- map2(inputs, 1:length(inputs),
+               ~ paste0(.x, str_glue("\n\nSAVEDATA: \nFILE = save{.y}.dat;\nSAVE = CPROBABILITIES;")))
 
+# Save input files (and delete old version if exists)
 walk2(inputs, 1:length(inputs), function(m, f) {
      fp <- here("analysis", "rosalind", "fits", f)
      if (file_exists(fp)) {
