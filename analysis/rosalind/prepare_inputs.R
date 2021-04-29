@@ -94,6 +94,7 @@ make_input <- function(dpath,
                        starts = FALSE,
                        boot = FALSE) {
     # Get number of time points from input file
+
     dap <- str_split(names_statement, " ") %>%
         unlist() %>%
         map_chr(str_trim) %>%
@@ -101,6 +102,7 @@ make_input <- function(dpath,
         map_dbl(parse_number) %>%
         unique() %>%
         sort() 
+
     # Get first/last time point
     start <- nth(dap, 1)
     end <- nth(dap, -1)
@@ -108,7 +110,7 @@ make_input <- function(dpath,
     # Get "NAMES" statement from input file
     vn <- str_wrap(str_squish(names_statement), 40)
     # Define right-hand side of growth curve
-    right_side <- str_wrap(str_squish(paste(y, pad(start:end), "@", (start:end), sep = "", collapse = " ")), 40)
+    right_side <- str_wrap(str_squish(paste(y, pad(dap), "@", dap, sep = "", collapse = " ")), 40)
     # Define title
     title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
     # Define 'use variables'
@@ -121,12 +123,12 @@ make_input <- function(dpath,
     tech14 = ifelse(boot, "TECH14", "")
     # Define functional form
     ff <- case_when(form == "quadratic" ~ "i s q",
-                    form == "cubic" ~ "i s q c")
+                    form == "cubic" ~ "i s q b")
     # Define constraints
     constraints <- case_when(model == "lcga" & form == "quadratic" ~ "i-q@0",
-                             model == "lcga" & form == "cubic" ~ "i-c@0",
+                             model == "lcga" & form == "cubic" ~ "i-b@0",
                              model == "gmm" & form == "quadratic" ~ "",
-                             model == "gmm" & form == "cubic" ~ "c@0")
+                             model == "gmm" & form == "cubic" ~ "b@0")
     # Generate the model
     return(str_glue("
     TITLE: {title}
