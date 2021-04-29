@@ -3,73 +3,85 @@
 # Started:      2021-04-26
 
 library(tidyverse)
+library(furrr)
+plan(multicore)
 library(here)
 library(fs)
 library(MplusAutomation)
+library(janitor)
 library(hdf5r)
+current <- "2021-04-29 Revised run, including quadratic slopes"
+p <- here("analysis", "rosalind", "saved_fits", current)
 
-p <- here("analysis", "rosalind", "saved_fits", 
-          "2021-04-26 First run of LGCA and GMM")
-fit <- readModels(p)
+# Load index ------------------------------------------------------------------
+load(here("analysis", "rosalind", "index.Rdata"), verbose = TRUE)
+
+# Load Mplus outputs ----------------------------------------------------------
+fit <- dir_ls(p, glob = "*.out") %>%
+    future_map(readModels)
+names(fit) <- path_ext_remove(path_file(names(fit)))
 
 # Extract fit statistics ------------------------------------------------------
-
-fit_stat <- map_dfr(fit, "summaries") %>%
+fit_stat <- map_dfr(fit, "summaries", .id = "model_id") %>%
     janitor::clean_names() %>%
-    mutate(model = case_when(str_detect(title, "^LCGA") ~ "LCGA",
-                             str_detect(title, "^GMM") ~ "GMM"),
-           y = case_when(str_detect(title, "GAD,") ~ "GAD",
-                         str_detect(title, "PHQ,") ~ "PHQ")) %>%
-    select(y, model, nclass = n_latent_classes, everything())
-
-save(fit_stat, file = here("analysis", "outputs", "fit_stat.Rdata"))
+    as_tibble() %>%
+    mutate(model_id = as.numeric(model_id)) %>%
+    left_join(index, by = "model_id")
 
 lookup <- fit_stat %>%
-    select(y, model, nclass, filename) %>%
-    mutate(filename = parse_number(filename))
-
+    select(y, model, form, classes, model_id)
 
 # Extract class sizes ---------------------------------------------------------
-
 class_size <- fit %>% 
     map_dfr(~ .x$class_counts$mostLikely, .id = "filename") %>%
-    mutate(filename = parse_number(filename)) %>%
-    left_join(lookup)
-
-save(class_size, file = here("analysis", "outputs", "class_size.Rdata"))
+    mutate(model_id = parse_number(filename)) %>% 
+    left_join(lookup) %>%
+    arrange(model_id, class)
 
 # Extract class summaries -----------------------------------------------------
+inp <- readLines(here("analysis", "rosalind", "saved_fits", current, "1"))
+start <- grep("^NAMES =.*", inp)
+end <- grep("^USEVARIABLES =.*", inp) - 1
+times <- suppressWarnings(unique(na.omit(parse_number(str_split(paste(inp[start:end], collapse = " "), " ")[[1]]))))
 
-extract_plot_data <- function(file, ifn = 2:33) {
+extract_plot_data <- function(file, dap = times) {
     gh5 <- H5File$new(file, mode = "r+")
     return(data.frame(
-      ifn = ifn,
+      dap = dap,
       est = gh5[["means_and_variances_data/y_estimated_means/values"]][,],
       obs = gh5[["means_and_variances_data/y_observed_means/values"]][,]
     ))
 }
 
-
 get_filename <- function(path) { path_ext_remove(path_file(path)) }
 
 gh5 <- map_dfr(dir_ls(p, glob = "*.gh5"),
                extract_plot_data,
-               .id = "filename")  %>%
-    mutate(filename = parse_number(get_filename(filename)))
+               .id = "model_id")  %>%
+    mutate(model_id = parse_number(get_filename(model_id)))
 
 class_summaries <- gh5 %>%
     left_join(lookup) %>%
-    gather(k, v, -filename, -ifn, -nclass, -y, -model) %>%
+    gather(k, v, -model_id, -dap, -classes, -form, -y, -model) %>%
     as_tibble() %>%
     mutate(class = as.numeric(str_match(k, "^[estobs]+\\.([0-9]+)$")[,2]),
            type = case_when(str_detect(k, "^est") ~ "est",
                             str_detect(k, "^obs") ~ "obs")) %>%
-    select(nclass, class, y, model, ifn, v, type) %>%
+    select(classes, class, y, model, dap, v, type) %>%
     spread(type, v) %>%
-    arrange(nclass, class, y, model, ifn)
+    arrange(classes, class, y, model, dap)
 
+# Extract ID variable ---------------------------------------------------------
+class_ids <- map_dfr(fit, "savedata", .id = "model_id") %>%
+    clean_names() %>%
+    select(model_id, pid, c, cprob1, cprob2) %>%
+    mutate(model_id = as.numeric(model_id)) %>%
+    as_tibble() %>%
+    left_join(lookup)
 
-save(class_summaries, file = here("analysis",
-                                  "outputs",
-                                  "class_summaries.Rdata"))
-
+# Save ------------------------------------------------------------------------
+save(fit_stat,
+     class_size,
+     class_summaries,
+     class_ids,
+     file = here("analysis", "outputs", "class_summaries.Rdata"))
