@@ -153,16 +153,17 @@ make_input <- function(dpath,
     "))
 }
 
-inputs <- list(dpath           = "../data/check_wide.dat",
-               y               = c("gad", "phq"),
-               form            = c("quadratic", "cubic"),
-               names_statement = input_file$wide[4],
-               classes         = 2:12,
-               starts          = TRUE,
-               boot            = FALSE,
-               model           = c("lcga", "gmm")) %>%
-    cross() %>%
-    map(~ exec(make_input, !!!.x))
+combinations <- list(dpath           = "../data/check_wide.dat",
+                     y               = c("gad", "phq"),
+                     form            = c("quadratic", "cubic"),
+                     names_statement = input_file$wide[4],
+                     classes         = 2:12,
+                     starts          = TRUE,
+                     boot            = FALSE,
+                     model           = c("lcga", "gmm")) %>%
+    cross()
+
+inputs <- map(combinations, ~ exec(make_input, !!!.x))
 
 # Add "SAVEDATA" statement
 inputs <- map2(inputs, 1:length(inputs),
@@ -177,4 +178,9 @@ walk2(inputs, 1:length(inputs), function(m, f) {
      writeLines(m, fp)
    }
 )
+
+# Save index
+index <- reduce(combinations, bind_rows)
+index$model_id <- 1:length(combinations)
+save(index, file = here("analysis", "rosalind", "index.Rdata"))
 
