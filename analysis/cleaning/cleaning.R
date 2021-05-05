@@ -6,7 +6,9 @@ library(tidyverse)
 library(lubridate)
 library(here)
 library(readxl)
+library(janitor)
 noisy <- FALSE
+source(here("analysis", "functions.R"))
 load(here("data", "clean", "aw.Rdata"), verbose = TRUE)
 
 # Identify non-response -------------------------------------------------------
@@ -173,33 +175,34 @@ aw <- left_join(aw, tracker, by = c("t" = "batch"))
 # aw <- aw %>%
 #     distinct(pid, ifn, .keep_all = TRUE)
 
-
 ###############################################################################
 ####                                                                      #####
-####                        CLEAN REQUIRED MEASURES                       #####
+####                  Prepare required BASELINE measures                  #####
 ####                                                                      #####
 ###############################################################################
 
-aw$is_staff <- str_detect(aw$role, "staff")
-aw$age <- as.numeric(aw$age)
+bl <- filter(aw, t == 0)
+
+bl$is_staff <- str_detect(bl$role, "staff")
+bl$age <- as.numeric(bl$age)
 
 # Gender ----------------------------------------------------------------------
 
 # As in baseline paper, we're randomly assigning "Other" to either "Female" or
 # "Male" based on sample proportions.
 
-p_female <- prop.table(table(aw$gender))[1]
+p_female <- prop.table(table(bl$gender))[1]
 
-aw$female <- aw$gender == "Female"
-to_replace <- aw$gender %in% c("Other", "Prefer not to say")
-aw$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
+bl$female <- bl$gender == "Female"
+to_replace <- bl$gender %in% c("Other", "Prefer not to say")
+bl$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
                                 size = sum(to_replace),     # FALSE = male
                                 prob = c(p_female, 1 - p_female),
                                 replace = TRUE)
 
 # Ethnicity -------------------------------------------------------------------
 
-aw <- aw %>%
+bl <- bl %>%
     mutate(ethnic_group = case_when(str_detect(ethnicity, "Mixed") ~ "Mixed",
                                     str_detect(ethnicity, "White") ~ "White",
                                     str_detect(ethnicity, "Black") ~ "Black",
@@ -209,6 +212,43 @@ aw <- aw %>%
            ethnic_f = factor(ethnic_group,
                               levels = c("White", "Black", "Asian",
                                          "Mixed", "Other")))
+
+
+# Other covariates ------------------------------------------------------------
+
+bl <- bl %>%
+    mutate(child_liv = replace_na(children_cohabit, 0),
+           numchild = factor(case_when(child_liv %in% 0:2 ~ child_liv,
+                                       child_liv >= 3 ~ 3,
+                                       is.na(child_liv) ~ 0),
+                             levels = 0:3,
+                             labels = c("0", "1", "2", "3+")),
+           child_yng = replace_na(children_age, 0),
+           child6 = (child_liv > 0) & (child_yng <= 6),
+           othercare = replace_na(dependents, "Missing"),
+           highrisk = isolation_reason == "I have an existing medical condition or I am categorised as high risk",
+           shield_isol = case_when(isolation_status %in% c("Currently shielding",
+                                                           "Currently isolating") ~ TRUE,
+                                   is.na(isolation_status) ~ NA,
+                                   TRUE ~ FALSE),
+           chronic_any = chronic_any == "Yes",
+           probdef = covid_suspect_self %in% c("Probably", "Definitely"),
+           kwself = case_when(keyworker_self == "None of these" ~ "No",
+                              is.na(keyworker_self) ~ "Missing",
+                              TRUE ~ "Yes"),
+           kwself01 = kwself == "Yes",
+           livalon = str_detect(living_current, "Alone"),
+           renting = case_when(str_detect(accom, "[Rr]ented") ~ TRUE,
+                               accom == "Missing" ~ NA,
+                               TRUE ~ FALSE),
+           accom = recode_accom(replace_na(accom, "Missing")),
+           relat = recode_relat(replace_na(relat, "Missing")))
+
+###############################################################################
+####                                                                      #####
+####                       Prepare repeated measures                      #####
+####                                                                      #####
+###############################################################################
 
 # PHQ-9 and GAD-7 -------------------------------------------------------------
 
@@ -243,26 +283,44 @@ aw <- aw %>%
                                  gad_nmiss == 0 ~ gad_sum)) 
 
 
+# Identify '2 monthly' questionnaires -----------------------------------------
+
+periods <- read_xlsx(here("data", "raw", "survey", "master_tracker.xlsx"),
+                     sheet = "Total Counts",
+                     range = "A20:D60") %>%
+    clean_names()
+
+aw <- periods %>%
+    bind_rows(data.frame(period = 0, type = "2-Month")) %>%
+    mutate(two_month = type == "2-Month") %>%
+    select(two_month, t = period) %>%
+    right_join(aw, by = "t")
+
 ###############################################################################
 ####                                                                      #####
-####                   Forward-fill some baseline values                  #####
+####                 Merge baseline and repeated measures                 #####
 ####                                                                      #####
 ###############################################################################
 
-aw <- aw %>%
-    group_by(pid) %>%
-    arrange(pid, dap) %>%
-    fill(ethnic_group, ethnic_f, age, gender, female, role, is_staff,
-         .direction = "down")
+a <- aw %>% select(pid,
+                   t, dap, phq_total, gad_total, two_month)
+b <- bl %>% select(pid,
+                   start_date, end_date, excluded, max_wave,
+                   age, female, is_staff, ethnic_f, child6, numchild,
+                   highrisk, othercare, shield_isol, probdef, kwself01,
+                   probdef, livalon, renting)
+aw <- full_join(a, b, by = "pid")
+
 
 # Select required measures ----------------------------------------------------
 sel <- aw %>%
     select(pid,
            t,
            dap,
+           two_month,
            is_staff,
            age,
-           gender, female,
+           female,
            ethnic_f,
            start = start_date,
            end = end_date,
@@ -270,14 +328,22 @@ sel <- aw %>%
            starts_with("phq_item"),
            starts_with("gad_item"),
            phq = phq_total,
-           gad = gad_total)
+           gad = gad_total,
+           child6,
+           numchild,
+           highrisk,
+           othercare,
+           shield_isol,
+           probdef,
+           kwself01,
+           livalon,
+           renting)
 
 # Check analysis dataset is unique by "pid" and "iw"
 sel %>%
     group_by(pid, dap) %>%
     mutate(n = n()) %>%
     filter(n > 1)
-
 
 ###############################################################################
 ####                                                                      #####
@@ -297,12 +363,14 @@ sel %>%
 # sel <- sel %>%
 #     left_join(d1, by = "interview_fortnight")
 
-# Save longitudinal dataset ---------------------------------------------------
+
+###############################################################################
+####                                                                      #####
+####                                 Save                                 #####
+####                                                                      #####
+###############################################################################
 
 save(sel, aw,
      file = here("data", "clean", "rep.Rdata"))
 
-# Save baseline dataset -------------------------------------------------------
-
-bl <- filter(aw, t == 0)
 save(bl, file = here("data", "clean", "baseline.Rdata"))

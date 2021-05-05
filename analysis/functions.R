@@ -1,3 +1,39 @@
+recode_accom <- function(x) {
+    factor(case_when(x == "Buying with the help of a mortgage or loan"                          ~ "Privately owned (self)",
+                     x == "Live rent-free (including rent-free in relative’s/friends property)" ~ "Other",
+                     x == "Missing"                                                             ~ "Missing",
+                     x == "Other"                                                               ~ "Other",
+                     x == "Privately owned (family)"                                            ~ "Other",
+                     x == "Privately owned (self)"                                              ~ "Privately owned (self)",
+                     x == "Rented (local authority)"                                            ~ "Rent (social)",
+                     x == "Rented (private sector)"                                             ~ "Rent (private, voluntary)",
+                     x == "Rented (voluntary sector)"                                           ~ "Rent (private, voluntary)",
+                     x == "Shared ownership"                                                    ~ "Other"),
+           levels = c("Privately owned (self)",
+                      "Rent (social)",
+                      "Rent (private, voluntary)",
+                      "Other",
+                      "Missing"))
+}
+
+recode_relat <- function(x) {
+    factor(case_when(
+                     x == "Civil Partnership"                     ~ "Civil partnership, married, cohabiting, non-cohabiting",
+                     x == "Divorced"                              ~ "Divorced, separated, widowed",
+                     x == "In a relationship and co-habiting"     ~ "Civil partnership, married, cohabiting, non-cohabiting",
+                     x == "In a relationship but not co-habiting" ~ "Civil partnership, married, cohabiting, non-cohabiting",
+                     x == "Married"                               ~ "Civil partnership, married, cohabiting, non-cohabiting",
+                     x == "Missing"                               ~ "Missing",
+                     x == "Separated"                             ~ "Divorced, separated, widowed",
+                     x == "Single"                                ~ "Single",
+                     x == "Widowed"                               ~ "Divorced, separated, widowed"),
+           levels = c("Single",
+                      "Civil partnership, married, cohabiting, non-cohabiting",
+                      "Divorced, separated, widowed",
+                      "Missing"))
+}
+
+
 swap_names <- function(d) {
     rename(d,
            login_id = `Login ID`,
