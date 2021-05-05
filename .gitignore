@@ -5,4 +5,9 @@ renv
 .directory
 *.simg
 analysis/rosalind/data/*
+analysis/rosalind/saved_fits/*
+analysis/rosalind/scratch/*
 *.ipynb_checkpoints
+analysis/eda/data_summary*
+analysis/eda/lc_gcm*
+*.dat
