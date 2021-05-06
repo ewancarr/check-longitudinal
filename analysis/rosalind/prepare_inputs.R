@@ -225,7 +225,6 @@ write_models  <- function(inputs, stub = "", target) {
 write_models(inputs,
              target = here("analysis", "rosalind", "local"))
 
-
 # Save index
 index <- reduce(combinations, bind_rows)
 index$model_id <- 1:length(combinations)
@@ -247,7 +246,7 @@ pick <- combinations %>%
 to_include <- list(a = "age", 
                    b = "female",
                    c = "child6",
-                   d = "livlon",
+                   d = "livalon",
                    e = "renting",
                    f = "kwself01")
 to_include$g <- reduce(to_include, c) 
