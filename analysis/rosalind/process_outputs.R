@@ -10,11 +10,15 @@ library(fs)
 library(MplusAutomation)
 library(janitor)
 library(hdf5r)
-current <- "2021-04-29 Revised run, including quadratic slopes"
+library(lubridate)
+current <- "2021-05-04 Local fits with decimal timings"
 p <- here("analysis", "rosalind", "saved_fits", current)
 
 # Load index ------------------------------------------------------------------
 load(here("analysis", "rosalind", "index.Rdata"), verbose = TRUE)
+
+# Load source data ------------------------------------------------------------
+load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
 
 # Load Mplus outputs ----------------------------------------------------------
 fit <- dir_ls(p, glob = "*.out") %>%
@@ -39,7 +43,7 @@ class_size <- fit %>%
     arrange(model_id, class)
 
 # Extract class summaries -----------------------------------------------------
-inp <- readLines(here("analysis", "rosalind", "saved_fits", current, "1"))
+inp <- readLines(paste0(p, "/1"))
 start <- grep("^NAMES =.*", inp)
 end <- grep("^USEVARIABLES =.*", inp) - 1
 times <- suppressWarnings(unique(na.omit(parse_number(str_split(paste(inp[start:end], collapse = " "), " ")[[1]]))))
@@ -64,6 +68,7 @@ class_summaries <- gh5 %>%
     left_join(lookup) %>%
     gather(k, v, -model_id, -dap, -classes, -form, -y, -model) %>%
     as_tibble() %>%
+    drop_na() %>%
     mutate(class = as.numeric(str_match(k, "^[estobs]+\\.([0-9]+)$")[,2]),
            type = case_when(str_detect(k, "^est") ~ "est",
                             str_detect(k, "^obs") ~ "obs")) %>%
@@ -78,6 +83,15 @@ class_ids <- map_dfr(fit, "savedata", .id = "model_id") %>%
     mutate(model_id = as.numeric(model_id)) %>%
     as_tibble() %>%
     left_join(lookup)
+
+# Get date corresponding to 'dap' ---------------------------------------------
+date_lookup <- sel %>%
+    group_by(dap) %>%
+    summarise(start = min(start),
+              end = max(end)) 
+    
+class_summaries <- class_summaries %>%
+    left_join(date_lookup, by = "dap")
 
 # Save ------------------------------------------------------------------------
 save(fit_stat,
