@@ -273,6 +273,26 @@ sel %>%
     mutate(n = n()) %>%
     filter(n > 1)
 
+
+###############################################################################
+####                                                                      #####
+####                          Add baseline weights                        #####
+####                                                                      #####
+###############################################################################
+
+load(here("data", "clean", "weights.Rdata"), verbose = TRUE)
+
+# Check: does everyone in the `sel` dataset have a baseline weight
+table(unique(sel$pid) %in% weights$pid)
+# 2 people are missing a baseline weight. 
+# TODO: investigate/resolve.
+
+sel <- sel %>%
+    left_join(weights, by = "pid") %>%
+    select(pid, t, dap, rw, everything())
+
+bl <- left_join(bl, weights, by = "pid")
+
 ###############################################################################
 ####                                                                      #####
 ####                         Merge contextual data                        #####
