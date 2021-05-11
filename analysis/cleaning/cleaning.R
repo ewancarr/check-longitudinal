@@ -33,8 +33,6 @@ n1 <- count(aw, t, name = "n1")
 # and, (ii) for remaining duplicates, selecting a single observation per
 # participant/time based on data completness.
 
-# TODO: query this.
-
 # Remove "unfinished" questionnaires
 table(aw$finished)
 aw <- filter(aw, finished == "True")
@@ -68,7 +66,6 @@ aw <- aw %>%
     full_join(aw, by = "pid") %>%
     filter(n_entries > 1)
 
-
 # Convert 'survey period' into a measure of time ------------------------------
 
 table(aw$t)
@@ -101,79 +98,6 @@ tracker <- bind_rows(bl_date, tracker) %>%
 
 aw <- left_join(aw, tracker, by = c("t" = "batch"))
 
-###############################################################################
-####                                                                      #####
-####                                 DATES                                #####
-####                                                                      #####
-###############################################################################
-
-# if (noisy) {
-#     ggplot(aw,
-#            aes(x = start_date)) +
-#         geom_histogram(bins = 50) +
-#         facet_wrap(~ t, scales = "free_x")
-# }
-
-# # Check gaps between successive questionnaires --------------------------------
-
-# gaps <- aw %>%
-#     select(pid, pid_str, t, recorded_date) %>%
-#     arrange(pid, t) %>%
-#     group_by(pid) %>%
-#     mutate(gap = if_else(t == lag(t) + 1,
-#                          interval(lag(recorded_date), recorded_date) / days(1),
-#                          NA_real_),
-#            min_gap = min(gap, na.rm = TRUE))
-
-# table(gaps$gap < 7)
-
-# gaps %>%
-#     filter(!is.nan(min_gap)) %>%
-#     arrange(min_gap) %>%
-#     print(n = 200)
-
-# # Create 'week number' and 'fortnight number' --------------------------------
-
-# aw <- aw %>%
-#     mutate(interview_week = round_date(recorded_date,
-#                                        unit = weeks(1),
-#                                        week_start = 1),
-#            interview_fortnight = round_date(recorded_date,
-#                                             unit = weeks(2),
-#                                             week_start = 1),
-#            iw = as.numeric(as.factor(interview_week)),
-#            ifn = as.numeric(as.factor(interview_fortnight)))
-
-# # Remove duplicates by week
-
-# # NOTE: We already did this, above, for 't'. But we need to do it again because
-# # when translating from "survey period" to "interview week", some individuals 
-# # could respond more than once per week, as shown below:
-
-# aw %>%
-#     group_by(pid, iw) %>%
-#     mutate(n = n(),
-#            t = t,
-#            interview_week = interview_week,
-#            recorded_date = recorded_date) %>%
-#     select(pid, t, iw, interview_week, recorded_date, n) %>%
-#     group_by(pid) %>%
-#     filter(max(n) > 1) %>%
-#     print(n = 1000)
-
-# aw %>%
-#     group_by(pid, ifn) %>%
-#     mutate(n = n(),
-#            t = t,
-#            interview_week = interview_week,
-#            recorded_date = recorded_date) %>%
-#     select(pid, t, ifn, interview_fortnight, recorded_date, n) %>%
-#     group_by(pid) %>%
-#     filter(max(n) > 1) %>%
-#     print(n = 100)
-
-# aw <- aw %>%
-#     distinct(pid, ifn, .keep_all = TRUE)
 
 ###############################################################################
 ####                                                                      #####
@@ -181,7 +105,9 @@ aw <- left_join(aw, tracker, by = c("t" = "batch"))
 ####                                                                      #####
 ###############################################################################
 
-bl <- filter(aw, t == 0)
+bl <- filter(aw, dap == 0)
+
+# Role, age -------------------------------------------------------------------
 
 bl$is_staff <- str_detect(bl$role, "staff")
 bl$age <- as.numeric(bl$age)
@@ -302,15 +228,18 @@ aw <- periods %>%
 ####                                                                      #####
 ###############################################################################
 
-a <- aw %>% select(pid,
-                   t, dap, phq_total, gad_total, two_month)
-b <- bl %>% select(pid,
-                   start_date, end_date, excluded, max_wave,
-                   age, female, is_staff, ethnic_f, child6, numchild,
-                   highrisk, othercare, shield_isol, probdef, kwself01,
-                   probdef, livalon, renting)
-aw <- full_join(a, b, by = "pid")
+repeated <- aw %>% select(pid,
+                          t, dap, phq_total, gad_total, two_month,
+                          midpoint)
 
+baseline <- bl %>% select(pid,
+                          midpoint_bl = midpoint,
+                          excluded, max_wave,
+                          age, female, is_staff, ethnic_f, child6, numchild,
+                          highrisk, othercare, shield_isol, probdef, kwself01,
+                          probdef, livalon, renting)
+
+aw <- full_join(repeated, baseline, by = "pid")
 
 # Select required measures ----------------------------------------------------
 sel <- aw %>%
@@ -322,8 +251,7 @@ sel <- aw %>%
            age,
            female,
            ethnic_f,
-           start = start_date,
-           end = end_date,
+           midpoint,
            excluded, max_wave,
            starts_with("phq_item"),
            starts_with("gad_item"),
