@@ -8,7 +8,7 @@ library(here)
 library(readxl)
 library(janitor)
 noisy <- FALSE
-source(here("analysis", "functions.R"))
+source(here("analysis", "functions", "generic.R"))
 load(here("data", "clean", "aw.Rdata"), verbose = TRUE)
 
 # Identify non-response -------------------------------------------------------
