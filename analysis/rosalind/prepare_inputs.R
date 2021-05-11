@@ -253,11 +253,17 @@ to_include$g <- reduce(to_include, c)
 
 # Create combinations of models/covariates ------------------------------------
 
-inputs2 <- cross(list(mod = pick,
-           r3step = to_include)) %>%
+combinations <- cross(list(mod = pick, r3step = to_include))
+
+inputs2 <- combinations %>%
     map(~ flatten(list_merge(.x[1], .x[2]))) %>%
     map(~ exec(make_input, !!!.x))
 
 write_models(inputs2,
              stub = "r3step",
              target = here("analysis", "rosalind", "local"))
+
+# Save index
+index2 <- map_dfr(combinations, ~ .x$mod, .id = "model_id") %>%
+    select(model_id, y, classes)
+save(index2, file = here("analysis", "rosalind", "index2.Rdata"))
