@@ -10,11 +10,13 @@ library(assertthat)
 library(readxl)
 library(VIM)
 
+# Load HR data
 hr <- readxl::read_xlsx(here("data", "raw", "admin", "staff",
                              "2411_AllStaffD&I_nopassword.xlsx"),
                         sheet = 3) %>%
     clean_names()
 
+# Load cleaned baseline data (see 'cleaning.R' for details)
 load(here("data", "clean", "baseline.Rdata"), verbose = TRUE)
 
 ###############################################################################
@@ -318,6 +320,46 @@ w <- ifelse(w > limit, limit, w)
 
 pgr$rw <- w
 student_weights <- pgr
+
+
+###############################################################################
+####                                                                      #####
+####         Create harmonised weights for pooled staff/PGR sample        #####
+####                                                                      #####
+###############################################################################
+
+# This is a bit complicated. 
+
+# We have separate weights for staff and PGR students, because they are drawn
+# from different populations. For the baseline paper, this was OK because we
+# analysed staff and PGR students separately. 
+
+# However, in the longitudinal paper, we'd like to be able to analyses a pooled
+# staff/PGR sample, but still use weighting.
+
+# We have two options (probably many more, but for now):
+
+# 1. We can use the existing weights. This would imply a combined population of
+# around 13,000 individuals:
+
+sum(staff_weights$rw)
+sum(pgr$rw) 
+
+# 2. We can scale the existing weights such that the staff/PGR students weights
+# have a mean of 1 and sum to the sample size. For example:
+
+scaling <- sum(staff_weights$rw) / nrow(staff_weights)
+head(cbind(staff_weights$rw,
+     staff_weights$rw / scaling))
+
+# Using (1), each particiant is scaled to represent their size in the population.
+# Using (2), each participant is scaled to represent their size in the sample.
+
+# For now, I'm going with (1), but I need to give this some more thought.
+
+weights <- bind_rows(select(staff_weights, pid, rw),
+                     select(student_weights, pid, rw))
+
 
 ###############################################################################
 ####                                                                      #####

@@ -273,45 +273,6 @@ sel %>%
     mutate(n = n()) %>%
     filter(n > 1)
 
-
-###############################################################################
-####                                                                      #####
-####                          Add baseline weights                        #####
-####                                                                      #####
-###############################################################################
-
-load(here("data", "clean", "weights.Rdata"), verbose = TRUE)
-
-# Check: does everyone in the `sel` dataset have a baseline weight
-table(unique(sel$pid) %in% weights$pid)
-# 2 people are missing a baseline weight. 
-# TODO: investigate/resolve.
-
-sel <- sel %>%
-    left_join(weights, by = "pid") %>%
-    select(pid, t, dap, rw, everything())
-
-bl <- left_join(bl, weights, by = "pid")
-
-###############################################################################
-####                                                                      #####
-####                         Merge contextual data                        #####
-####                                                                      #####
-###############################################################################
-
-# load(here("data", "raw", "contextual", "gov_d1.Rdata"), verbose = TRUE)
-
-# d1 <- d1 %>%
-#     mutate(interview_fortnight = round_date(date,
-#                                             unit = weeks(2),
-#                                             week_start = 1)) %>%
-#     group_by(interview_fortnight) %>%
-#     summarise(across(deaths28:new_cases, sum, na.rm = TRUE))
-
-# sel <- sel %>%
-#     left_join(d1, by = "interview_fortnight")
-
-
 ###############################################################################
 ####                                                                      #####
 ####                                 Save                                 #####

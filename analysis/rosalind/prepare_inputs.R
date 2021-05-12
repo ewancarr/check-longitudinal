@@ -8,8 +8,7 @@ library(fs)
 library(MplusAutomation)
 library(fastDummies)
 library(naniar)
-load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
-load(here("data", "clean", "baseline.Rdata"), verbose = TRUE)
+load(here("data", "clean", "clean.Rdata"), verbose = TRUE)
 
 ###############################################################################
 ####                                                                      #####
@@ -34,17 +33,19 @@ wide_data <- sel %>%
            n() == 1) %>%
     select(# ID variables
            pid, dap,
+           # Weights
+           rw,
            # Individual-level variables
            gad, phq) %>%
     ungroup() %>%
-    gather(k, v, -pid, -dap) %>%
+    gather(k, v, -pid, -dap, -rw) %>%
     mutate(k = paste0(k, sprintf("%02d", dap))) %>%
     select(-dap) %>%
     spread(k, v)
 
 # Add baseline variables ------------------------------------------------------
 
-wide_data <- bl %>%
+baseline <- bl %>%
     select(pid,
            is_staff,
            age,
@@ -63,8 +64,9 @@ wide_data <- bl %>%
            othercare = othercare == "Yes") %>%
     drop_na() %>%
     dummy_cols(select_columns = c("eth", "nc")) %>%
-    select(-eth, -ethnic_f, -nc) %>%
-    full_join(wide_data, by = "pid")
+    select(-eth, -ethnic_f, -nc) 
+
+wide_data <- inner_join(wide_data, baseline, by = "pid")
 
 # Remove characters Mplus doesn't like
 names(wide_data) <- str_replace_all(names(wide_data), "\\+", "")
@@ -75,10 +77,6 @@ wide_data %>%
     gather(measure, pct_complete) %>%
     as.data.frame()
 
-# Create LONG version ---------------------------------------------------------
-
-long_data <- select(aw, phq = phq_total, gad = gad_total, pid, dap)
-
 # Export, create input file ---------------------------------------------------
 
 prep <- function(dat, stub, p) {
@@ -88,11 +86,10 @@ prep <- function(dat, stub, p) {
     return(input_file)
 }
 
-input_file <- map2(list(wide_data, long_data),
-                   c("check_wide", "check_long"),
-                   prep,
-                   p = here("analysis", "rosalind", "data"))
-names(input_file) <- c("wide", "long")
+
+input_file <- prep(wide_data,
+                   "check_wide",
+                   here("analysis", "rosalind", "data"))
 
 ###############################################################################
 ####                                                                      #####
@@ -177,6 +174,7 @@ make_input <- function(dpath,
     USEVARIABLES = {uv};
     CLASSES = C({classes});
     IDVARIABLE = pid;
+    WEIGHT = rw;
     {r3step}
     MISSING=.;
     ANALYSIS: {pr}
@@ -226,9 +224,9 @@ write_models(inputs,
              target = here("analysis", "rosalind", "local"))
 
 # Save index
-index <- reduce(combinations, bind_rows)
-index$model_id <- 1:length(combinations)
-save(index, file = here("analysis", "rosalind", "index.Rdata"))
+index_gmm <- reduce(combinations, bind_rows)
+index_gmm$model_id <- 1:length(combinations)
+save(index_gmm, file = here("analysis", "rosalind", "data", "index_gmm.Rdata"))
 
 ###############################################################################
 ####                                                                      #####
@@ -239,7 +237,7 @@ save(index, file = here("analysis", "rosalind", "index.Rdata"))
 # Pick base models ------------------------------------------------------------
 pick <- combinations %>%
     # Pick base models
-    keep(~ (.x$y == "gad" & .x$classes == 6) | 
+    keep(~ (.x$y == "gad" & .x$classes == 5) | 
            (.x$y == "phq" & .x$classes == 5)) 
 
 # Define sets of covariates ---------------------------------------------------
@@ -264,6 +262,13 @@ write_models(inputs2,
              target = here("analysis", "rosalind", "local"))
 
 # Save index
-index2 <- map_dfr(combinations, ~ .x$mod, .id = "model_id") %>%
+index_r3step <- map_dfr(combinations,
+                        ~ .x$mod,
+                        .id = "model_id") %>%
     select(model_id, y, classes)
-save(index2, file = here("analysis", "rosalind", "index2.Rdata"))
+
+save(index_r3step,
+     file = here("analysis", 
+                 "rosalind",
+                 "data", 
+                 "index_r3step.Rdata"))
