@@ -166,7 +166,8 @@ bl <- bl %>%
            kwself = case_when(keyworker_self == "None of these" ~ "No",
                               is.na(keyworker_self) ~ "Missing",
                               TRUE ~ "Yes"),
-           kwself01 = kwself == "Yes",
+           kwself_b = kwself == "Yes",
+           # NOTE: kwself_b codes both "No" and "Missing" as FALSE. This isn't ideal.
            livalon = str_detect(living_current, "Alone"),
            renting = case_when(str_detect(accom, "[Rr]ented") ~ TRUE,
                                accom == "Missing" ~ NA,
@@ -228,6 +229,88 @@ aw <- periods %>%
     select(two_month, t = period) %>%
     right_join(aw, by = "t")
 
+
+# Self-reported COVID-19 status -----------------------------------------------
+
+aw$probdef <- aw$covid_suspect_self %in% c("Probably", "Definitely")
+
+# Date of first/second vaccination --------------------------------------------
+
+vaccine_dates <- aw %>%
+    # Remove people who are missing 'vaccination year' for both doses
+    filter(!(is.na(dose1_year) & is.na(dose2_year))) %>%
+    # Keep only 'year' values with 4 characters; sets "121" to missing.
+    mutate(across(c(dose1_year, dose2_year), ~ if_else(nchar(.x) == 4, .x, NA_character_))) %>%
+    group_by(pid) %>%
+    arrange(pid, dap) %>%
+    # Select the first non-missing date per person (because these are duplicated)
+    summarise(across(starts_with("dose"), ~ first(na.omit(.x)))) %>%
+    # Remove people missing a first vaccination date,
+    # or whose vaccination date is before 2020 (e.g. "1921").
+    drop_na(dose1_year) %>%
+    filter(dose1_year > 2019) %>%
+    mutate(# If ONLY the day is missing, replace with 15th of the month
+           dose1_day = if_else(!is.na(dose1_month) & !is.na(dose1_year) & is.na(dose1_day), "15", dose1_day),
+           dose2_day = if_else(!is.na(dose2_month) & !is.na(dose2_year) & is.na(dose2_day), "15", dose2_day),
+           # Generate dates
+           dd1 = ymd(paste(dose1_year, dose1_month, dose1_day)),
+           dd2 = ymd(paste(dose2_year, dose2_month, dose2_day), 
+                     quiet = TRUE)) %>%
+    select(pid, dd1, dd2)
+
+
+# At each survey period, had the participant and their first/second vaccine? --
+
+aw <- aw %>%
+    left_join(vaccine_dates, by = "pid") %>%
+    mutate(had_v1 = dd1 < midpoint,
+           had_v2 = dd2 < midpoint,
+           across(c(had_v1, had_v2), replace_na, FALSE)) 
+
+
+# NOTE: this assumes that if people don't provide a vaccination date, they
+# haven't been vaccinated. There are about 10 people who say "Yes" they have
+# been vaccinated but don't provide a date:
+
+aw %>%
+    filter(str_detect(had_vaccine, "^Yes")) %>%
+    select(pid, dap, had_vaccine, starts_with("dose")) %>%
+    group_by(pid) %>%
+    summarise(check = all(is.na(dose1_month))) %>%
+    count(check)
+
+# COVID stressors -------------------------------------------------------------
+
+categories <- flatten_chr(str_split(aw$stress_question, ",")) %>% discard(~ is.na(.x)) %>% str_squish() %>% unique() 
+print(categories)
+
+q1 <- "Unable to pay bills|sufficient food|Lost your job|Evicted|food bank|lost their job"
+q2 <- "lost somebody close to you|in hospital"
+q3 <- "delay major life plans"
+q4 <- "difficulties accessing required medication"
+
+stressors <- aw %>%
+    select(pid, t, stress_question) %>% 
+    complete(crossing(pid, t)) %>%
+    mutate(s_material = str_detect(stress_question, q1),
+           s_person = str_detect(stress_question, q2),
+           s_plans = str_detect(stress_question, q3),
+           s_medi = str_detect(stress_question, q4)) %>%
+    group_by(pid) %>%
+    arrange(pid, t) %>%
+    mutate(across(starts_with("s_"), replace_na, FALSE),
+           across(starts_with("s_"), cumsum, .names = "{col}_sum"),
+           across(ends_with("_sum"), lead, 3, .names = "{col}_lag", default = FALSE),
+           across(ends_with("_lag"), cummax))
+
+aw <- stressors %>%
+    select(pid, t,
+           s_plans = s_plans_sum_lag,
+           s_person = s_person_sum_lag,
+           s_material = s_material_sum_lag,
+           s_medi = s_medi_sum_lag) %>%
+    right_join(aw, by = c("pid", "t"))
+
 ###############################################################################
 ####                                                                      #####
 ####                 Merge baseline and repeated measures                 #####
@@ -235,8 +318,11 @@ aw <- periods %>%
 ###############################################################################
 
 repeated <- aw %>% select(pid,
-                          t, dap, phq_total, gad_total, two_month,
-                          midpoint)
+                          t, dap,
+                          two_month, midpoint,
+                          phq_total, gad_total,
+                          had_v1, had_v2,
+                          starts_with("s_"))
 
 baseline <- bl %>% select(pid,
                           midpoint_bl = midpoint,
