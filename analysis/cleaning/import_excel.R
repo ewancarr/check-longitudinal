@@ -12,6 +12,24 @@ library(janitor)
 source(here("analysis", "functions", "generic.R"))
 latest <- "2021-05-12"
 
+excel_files <- dir_ls(here("data", "raw", "survey", latest, "raw-do-not-edit"))
+
+# Check for duplicated variable names in each file ----------------------------
+
+identify_duplicates <- function(path) {
+    cols <- names(read_xlsx(path, n_max = 0, .name_repair = "minimal"))
+    return(cols[duplicated(cols)])
+}
+
+dupes <- map(excel_files, identify_duplicates)
+names(dupes) <- path_ext_remove(path_file(names(dupes)))
+
+walk2(dupes, names(dupes), 
+      ~ cat("\n", .y, rep("_", 25 - nchar(.y)), ": ", paste(.x, collapse = ", "), sep = ""))
+
+# VERY IMPORTANT: If you're using any of the duplicated variables, these need
+#                 to be de-duplicated before importing.
+
 # Import Excel files ----------------------------------------------------------
 
 latest <- "2021-05-12"
@@ -58,17 +76,50 @@ fu <- list_modify(ar,
                   "0-baseline-reminder" = NULL,
                   "0-baseline_final" = NULL) 
 
+
+# The "Q___" variables are complicated because (a) they're not collected at all
+# waves and (b) the same Q-number can refer to completed different variables at
+# different waves.  Therefore, the list below defines which Q-variables to
+# extract at specifc waves.
+
+# First, get a list of which Q-variables are measured at each wave
+
+map(fu, names) %>%
+    map(str_subset, "^Q") %>%
+    map_dfr(~ paste(sort(.x), collapse = " "), .id = "period") %>%
+    gather(period, q_vars) %>%
+    mutate(period = parse_number(period)) %>%
+    arrange(period) %>% print(n = 30) 
+    
+#                   variable  new label      survey periods
+q_vars <- list(list("Q265",   "had_vaccine", c(16, 20, 24)),
+               list("Q267_1", "dose1_month", c(20, 24)),
+               list("Q267_2", "dose1_day",   c(20, 24)),
+               list("Q267_3", "dose1_year",  c(20, 24)),
+               list("Q268_1", "dose2_month", c(20, 24)),
+               list("Q268_2", "dose2_day",   c(20, 24)),
+               list("Q268_3", "dose2_year",  c(20, 24)),
+               list("Q266",   "dose_n",      c(16, 20, 24)),
+               list("Q216",   "on_furlough", c(4, 8, 12, 16, 20, 24)))
+
 fu <- map2(fu, names(fu),
      function(d, w) {
-         # d <- mutate(d, across(one_of(c("Q214", "Q218", "Q216", "Q212", "Q246", 
-         #                                "Q242", "Q254", "Q256")),
-         #                      as.character))
-         # NOTE: I'm dropping all Q____ variables because they differ across
-         # waves and are therefore complicated to import cleanly. If we need 
-         # them, we'll need to rename in each wave before merging.
+         # Extract/rename required Q-variables
+         period <- parse_number(w)
+         for (k in q_vars) {
+             required_periods <- k[[3]]
+             old_name <- k[[1]]
+             new_name <- k[[2]]
+             if (period %in% required_periods) {
+                 d[new_name] <- d[old_name]
+             }
+         }
+         # Remove all other Q____ variables
          d <- select(d, -matches("^Q[0-9_\\.]+$"))
          d$tid <- w
-         return(d) }) 
+         return(d) 
+     }
+) 
 
 fu <- reduce(fu, bind_rows)
 
