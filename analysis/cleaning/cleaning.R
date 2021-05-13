@@ -9,6 +9,7 @@ library(readxl)
 library(janitor)
 noisy <- FALSE
 source(here("analysis", "functions", "generic.R"))
+latest <- "2021-05-12"
 load(here("data", "clean", "aw.Rdata"), verbose = TRUE)
 
 # Identify non-response -------------------------------------------------------
@@ -77,7 +78,9 @@ table(aw$t)
 # another time variable that maps "survey period" onto a "week number". I'll
 # use the master tracker for this.
 
-tracker <- read_xlsx(here("data", "raw", "survey", "master_tracker.xlsx"),
+tracker <- read_xlsx(here("data", "raw", "survey", 
+                          latest,
+                          "master_tracker.xlsx"),
           sheet = "Schedule",
           range = "A1:D41") %>%
     mutate(gap = interval(`Date...1`, `Date...4`) / days(1),
@@ -98,6 +101,7 @@ tracker <- bind_rows(bl_date, tracker) %>%
 
 aw <- left_join(aw, tracker, by = c("t" = "batch"))
 
+count(aw, dap) %>% print(n = 100)
 
 ###############################################################################
 ####                                                                      #####
@@ -211,7 +215,9 @@ aw <- aw %>%
 
 # Identify '2 monthly' questionnaires -----------------------------------------
 
-periods <- read_xlsx(here("data", "raw", "survey", "master_tracker.xlsx"),
+periods <- read_xlsx(here("data", "raw", "survey", 
+                          latest, 
+                          "master_tracker.xlsx"),
                      sheet = "Total Counts",
                      range = "A20:D60") %>%
     clean_names()

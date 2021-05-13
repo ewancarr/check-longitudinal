@@ -9,12 +9,12 @@ library(here)
 library(fs)
 library(labelled)
 library(janitor)
-# source(here("analysis", "cleaning", "labels.R"))
-source(here("analysis", "functions.R"))
+source(here("analysis", "functions", "generic.R"))
+latest <- "2021-05-12"
 
 # Import Excel files ----------------------------------------------------------
 
-latest <- "2021-03-30"
+latest <- "2021-05-12"
 
 import_raw <- function(path, ctypes) {
     # Import once, to get variable names only
@@ -43,7 +43,8 @@ bl <- bind_rows(ar[["0-baseline-reminder"]],
     mutate(tid = "0-period") 
 
 # Remove "Code 3" participants
-code3 <- read_xlsx(here("data", "raw", "survey", "master_tracker.xlsx"),
+code3 <- read_xlsx(here("data", "raw", "survey", latest, 
+                        "master_tracker.xlsx"),
           sheet = "Participants") %>%
     select(`Dropout Code`,
            `ResponseId` = `Baseline Response ID`) %>%
@@ -91,8 +92,6 @@ aw <- aw %>%
 # 3. To construct a consistent longitudinal ID, therefore, we 
 #     i. Use "login_id" and/or "external_reference" where these are available;
 #    ii. For participants at baseline without (i), we use "response_id".
-
-# TODO: query this
 
 aw <- aw %>%
     mutate(pid_str = case_when(
