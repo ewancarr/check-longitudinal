@@ -2,6 +2,7 @@
 # Author:       Ewan Carr
 # Started:      2021-02-02
 
+renv::load()
 library(tidyverse)
 library(here)
 library(readxl)
