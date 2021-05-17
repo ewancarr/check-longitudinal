@@ -316,9 +316,9 @@ aw <- stressors %>%
 
 fill_lead <- function(d, var) {
     d %>%
-        mutate(lead3 = lead(current_furlough, 3),
-               lead2 = lead(current_furlough, 2),
-               lead1 = lead(current_furlough, 1),
+        mutate(lead3 = lead({{var}}, 3),
+               lead2 = lead({{var}}, 2),
+               lead1 = lead({{var}}, 1),
                {{var}} := coalesce({{var}}, lead1, lead2, lead3)) %>% 
         select(-lead1, -lead2, -lead3) 
 }
@@ -340,7 +340,7 @@ furlough <- aw %>%
     group_by(pid) %>%
     fill_lead(current_furlough) %>%
     mutate(across(c(current_furlough, prev_furlough), replace_na, FALSE),
-           ever_furlough = as.logical(cummax(current_furlough | prev_furlough)))  %>%
+           ever_furlough = as.logical(cummax(current_furlough | prev_furlough))) %>%
     select(pid, t,
            fur_cu = current_furlough,
            fur_ev = ever_furlough)
@@ -381,7 +381,6 @@ dupes <- sel %>%
     filter(n > 1) %>%
     nrow()
 stopifnot(dupes == 0)
-
 
 ###############################################################################
 ####                                                                      #####
