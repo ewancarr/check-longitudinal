@@ -8,7 +8,7 @@ library(fs)
 library(MplusAutomation)
 library(fastDummies)
 library(naniar)
-load(here("data", "clean", "clean.Rdata"), verbose = TRUE)
+load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 
 ###############################################################################
 ####                                                                      #####
@@ -16,7 +16,7 @@ load(here("data", "clean", "clean.Rdata"), verbose = TRUE)
 ####                                                                      #####
 ###############################################################################
 
-# # Decide which time points to use -------------------------------------------
+# Decide which time points to use ---------------------------------------------
 
 # Either all times points or 2-monthly questionnaires only.
 
@@ -25,7 +25,7 @@ if (two_monthly) {
     sel <- filter(sel, two_month)
 }
 
-# Reshape outcomes to WIDE format ---------------------------------------------
+# Reshape outcomes and time-varying covariates to WIDE format -----------------
 
 wide_data <- sel %>%
     group_by(pid, dap) %>%

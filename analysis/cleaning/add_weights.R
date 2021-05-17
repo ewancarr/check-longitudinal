@@ -2,15 +2,15 @@
 # Author:       Ewan Carr
 # Started:      2021-05-12
 
+renv::load()
 library(tidyverse)
 library(here)
 
-for (d in c("rep", "baseline", "weights")) {
-    load(here("data", "clean", str_glue("{d}.Rdata")), verbose = TRUE)
-}
+load(here("data", "clean", "check.Rdata"), verbose = TRUE)
+load(here("data", "clean", "weights.Rdata"), verbose = TRUE)
 
 # Check: does everyone in the `sel` dataset have a baseline weight
-all(table(unique(sel$pid) %in% weights$pid))
+stopifnot(all(table(unique(sel$pid) %in% weights$pid)))
 
 # Merge weights with longitudinal data
 sel <- inner_join(sel, weights, by = "pid") 
@@ -25,6 +25,6 @@ table(is.na(aw$rw))
 table(is.na(bl$rw))
 
 # Save
-save(sel, aw, bl, file = here("data", "clean", "clean.Rdata"))
+save(sel, aw, bl, file = here("data", "clean", "check.Rdata"))
 
 

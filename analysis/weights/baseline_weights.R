@@ -2,6 +2,7 @@
 # Author:       Ewan Carr
 # Started:      2021-03-03
 
+renv::load()
 library(tidyverse)
 library(here)
 library(janitor)
@@ -17,7 +18,7 @@ hr <- readxl::read_xlsx(here("data", "raw", "admin", "staff",
     clean_names()
 
 # Load cleaned baseline data (see 'cleaning.R' for details)
-load(here("data", "clean", "baseline.Rdata"), verbose = TRUE)
+load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 
 ###############################################################################
 ####                                                                      #####

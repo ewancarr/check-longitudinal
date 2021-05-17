@@ -20,15 +20,14 @@
 # - Q18 (post code)
 # - Final_1 (free text comments)
 
+renv::load()
 library(tidyverse)
 library(here)
-
-load(here("data", "clean", "rep.Rdata"), verbose = TRUE)
-
+load(here("data", "clean", "aw.Rdata"), verbose = TRUE)
+load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 
 aw_pseudo <- aw %>%
-    select(-n_entries,
-           -pid_str,
+    select(-pid_str,
            -login_id,
            -response_id,
            -extref,
@@ -59,4 +58,4 @@ aw_pseudo <- aw %>%
            -chronic_other,
            -discrimination_2)
 
-save(aw_pseudo, file = here("data", "clean", "aw_pseudo.Rdata"))
+save(aw_pseudo, sel, file = here("data", "clean", "pseudo_anon.Rdata"))
