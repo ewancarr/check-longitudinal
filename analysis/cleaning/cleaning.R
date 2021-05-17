@@ -2,6 +2,7 @@
 # Author:       Ewan Carr
 # Started:      2021-02-23
 
+renv::load()
 library(tidyverse)
 library(lubridate)
 library(here)
@@ -220,7 +221,7 @@ periods <- read_xlsx(here("data", "raw", "survey",
                           latest, 
                           "master_tracker.xlsx"),
                      sheet = "Total Counts",
-                     range = "A20:D60") %>%
+                     range = "A21:D61") %>%
     clean_names()
 
 aw <- periods %>%
@@ -311,6 +312,44 @@ aw <- stressors %>%
            s_medi = s_medi_sum_lag) %>%
     right_join(aw, by = c("pid", "t"))
 
+# Furlough --------------------------------------------------------------------
+
+fill_lead <- function(d, var) {
+    d %>%
+        mutate(lead3 = lead(current_furlough, 3),
+               lead2 = lead(current_furlough, 2),
+               lead1 = lead(current_furlough, 1),
+               {{var}} := coalesce({{var}}, lead1, lead2, lead3)) %>% 
+        select(-lead1, -lead2, -lead3) 
+}
+
+furlough <- aw %>%
+    ungroup() %>%
+    select(pid, t, on_furlough) %>%
+    arrange(pid, t) %>%
+    complete(crossing(pid, t)) %>%
+    mutate(current_furlough = case_when(
+                on_furlough %in% c("Yes, I am currently on furlough",
+                                   "Yes, I will soon be on furlough") ~ TRUE,
+                is.na(on_furlough) ~ NA,
+                TRUE ~ FALSE),
+           prev_furlough = case_when(
+                str_detect(on_furlough, "have since returned") ~ TRUE,
+                is.na(on_furlough) ~ NA,
+                TRUE ~ FALSE)) %>%
+    group_by(pid) %>%
+    fill_lead(current_furlough) %>%
+    mutate(across(c(current_furlough, prev_furlough), replace_na, FALSE),
+           ever_furlough = as.logical(cummax(current_furlough | prev_furlough)))  %>%
+    select(pid, t,
+           fur_cu = current_furlough,
+           fur_ev = ever_furlough)
+
+aw <- left_join(aw, furlough, by = c("pid", "t")) 
+
+# NOTE: we're interpreting "NA" values in the furlough question as "not on
+# furlough". This is problematic.
+
 ###############################################################################
 ####                                                                      #####
 ####                 Merge baseline and repeated measures                 #####
@@ -322,48 +361,27 @@ repeated <- aw %>% select(pid,
                           two_month, midpoint,
                           phq_total, gad_total,
                           had_v1, had_v2,
+                          fur_cu, fur_ev,
+                          probdef,
                           starts_with("s_"))
 
 baseline <- bl %>% select(pid,
                           midpoint_bl = midpoint,
                           excluded, max_wave,
                           age, female, is_staff, ethnic_f, child6, numchild,
-                          highrisk, othercare, shield_isol, probdef, kwself01,
-                          probdef, livalon, renting)
+                          highrisk, othercare, shield_isol, kwself_b,
+                          livalon, renting)
 
-aw <- full_join(repeated, baseline, by = "pid")
-
-# Select required measures ----------------------------------------------------
-sel <- aw %>%
-    select(pid,
-           t,
-           dap,
-           two_month,
-           is_staff,
-           age,
-           female,
-           ethnic_f,
-           midpoint,
-           excluded, max_wave,
-           starts_with("phq_item"),
-           starts_with("gad_item"),
-           phq = phq_total,
-           gad = gad_total,
-           child6,
-           numchild,
-           highrisk,
-           othercare,
-           shield_isol,
-           probdef,
-           kwself01,
-           livalon,
-           renting)
+sel <- full_join(repeated, baseline, by = "pid")
 
 # Check analysis dataset is unique by "pid" and "iw"
-sel %>%
+dupes <- sel %>%
     group_by(pid, dap) %>%
     mutate(n = n()) %>%
-    filter(n > 1)
+    filter(n > 1) %>%
+    nrow()
+stopifnot(dupes == 0)
+
 
 ###############################################################################
 ####                                                                      #####
@@ -371,7 +389,5 @@ sel %>%
 ####                                                                      #####
 ###############################################################################
 
-save(sel, aw,
-     file = here("data", "clean", "rep.Rdata"))
-
-save(bl, file = here("data", "clean", "baseline.Rdata"))
+save(sel, aw, bl,
+     file = here("data", "clean", "check.Rdata"))
