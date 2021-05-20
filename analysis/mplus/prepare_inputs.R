@@ -2,6 +2,8 @@
 # Author:       Ewan Carr
 # Started:      2021-04-21
 
+renv::load()
+library(vctrs)
 library(tidyverse)
 library(here)
 library(fs)
@@ -9,6 +11,16 @@ library(MplusAutomation)
 library(fastDummies)
 library(naniar)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
+
+# This script prepares Mplus input files for the longitudinal paper. There are
+# three types of models:
+# 
+# 1. Unconditional growth mixture model (GMM)
+# 2. GMM with time-invariant predictors of class membership
+# 3. GMM with time-varying predictors
+# 
+# We're considering both PHQ-9 and GAD-7. The functions below include arguments
+# that allow other options (e.g. cubic or quadratic).
 
 ###############################################################################
 ####                                                                      #####
@@ -27,6 +39,10 @@ if (two_monthly) {
 
 # Reshape outcomes and time-varying covariates to WIDE format -----------------
 
+# NOTE: I'm renaming most variables below, sorry! This is mostly for
+# compatability with Mplus (which requires very short names). The aim: 6
+# characters or less, [a-z] only.
+
 wide_data <- sel %>%
     group_by(pid, dap) %>%
     filter(# Check data is unique by individual and survey period
@@ -35,8 +51,20 @@ wide_data <- sel %>%
            pid, dap,
            # Weights
            rw,
-           # Individual-level variables
-           gad, phq) %>%
+           # Outcomes
+           gad = gad_total,
+           phq = phq_total,
+           # Time-varying covariates
+           fstv = had_v1, 
+           secv = had_v2,       # vaccination (renamed, because Mplus)
+           furcu = fur_cu,      # furlough
+           furev = fur_ev,      
+           prob = probdef,      # suspected COVID
+           stmat = s_material,  # stressors
+           stmed = s_medi,
+           stper = s_person,
+           stpla = s_plans
+           ) %>%
     ungroup() %>%
     gather(k, v, -pid, -dap, -rw) %>%
     mutate(k = paste0(k, sprintf("%02d", dap))) %>%
@@ -56,8 +84,9 @@ baseline <- bl %>%
            highrisk,
            othercare,
            shield_isol,
-           probdef,
-           kwself01,
+           kw = kwself_b,
+           pranx = prev_gad,
+           prdep = prev_depress,
            livalon,
            renting) %>%
     mutate(eth = tolower(as.character(ethnic_f)),
@@ -81,19 +110,20 @@ wide_data %>%
 
 prep <- function(dat, stub, p) {
     input_file <- prepareMplusData(dat,
-                                   filename = paste0(p, "/", stub, ".dat"))
+                                   filename = paste0(p, "/", stub, ".dat"),
+                                   overwrite = TRUE)
     writeLines(input_file, paste0(p, "/", stub, ".inp"))
     return(input_file)
 }
 
 
-input_file <- prep(wide_data,
+input_file <- prep(wide_data,       
                    "check_wide",
-                   here("analysis", "rosalind", "data"))
+                   here("analysis", "mplus", "data"))
 
 ###############################################################################
 ####                                                                      #####
-####              create input files: GROWTH MIXTURE MODELS               #####
+####            1. Generate input files for unconditional GMMs            #####
 ####                                                                      #####
 ###############################################################################
 
@@ -105,13 +135,6 @@ We're considering two types of model:
 
 The former is a simplified version of GMM, where within-class variations
 (variances and covariances) are constrained to zero.
-
-And two functional forms:
-
-1. Quadratic
-2. Cubic
-
-However, for now, I'm just fitting GMM/cubic.
 "
 
 make_input <- function(dpath,
@@ -191,84 +214,105 @@ make_input <- function(dpath,
     "))
 }
 
-combinations <- list(dpath           = "../data/check_wide.dat",
-                     y               = c("gad", "phq"),
-                     form            = "cubic",
-                     names_statement = input_file$wide[4],
-                     classes         = 2:10,
-                     starts          = FALSE,
-                     proc            = 24,
-                     boot            = FALSE,
-                     model           = "gmm") %>%
+comb1 <- list(dpath           = "data/check_wide.dat",
+              y               = c("gad", "phq"),
+              form            = "cubic",
+              names_statement = input_file[4],
+              classes         = 2:7,
+              starts          = TRUE,
+              proc            = 4,
+              boot            = FALSE,
+              model           = "gmm") %>%
     cross()
 
-inputs <- map(combinations, ~ exec(make_input, !!!.x))
+inputs1 <- map(comb1, ~ exec(make_input, !!!.x))
 
 # Add "SAVEDATA" statement
-inputs <- map2(inputs, 1:length(inputs),
+inputs1 <- map2(inputs1, 1:length(inputs1),
                ~ paste0(.x, str_glue("\n\nSAVEDATA: \nFILE = save{.y}.dat;\nSAVE = CPROBABILITIES;")))
 
 
+# Name each input file
+get_name <- function(i) {
+    str_glue("{i$model}_{i$y}_{i$classes}_{i$form}")
+}
+names(inputs1) <- map_chr(comb1, get_name)
+
+# Delete old input files, if they exist
+target <- here("analysis", "mplus", "input_files", "gmm")
+file_delete(dir_ls(target))
+
 # Save input files (and delete old version if exists)
-write_models  <- function(inputs, stub = "", target) {
-    walk2(inputs, 1:length(inputs), function(m, f) {
-         fp <- paste0(target, "/", stub, f)
-         if (file_exists(fp)) {
-             file_delete(fp)
-         }
-         writeLines(m, fp)
-       })
+write_models  <- function(inputs, target) {
+    walk2(inputs, names(inputs), function(inp, lab) {
+         fp = paste0(target, "/", lab, ".inp")
+         writeLines(inp, paste0(target, "/", lab, ".inp"))
+         cat(paste0("Saved file: ", lab, ".inp", "\n"))
+    })
 }
 
-write_models(inputs,
-             target = here("analysis", "rosalind", "local"))
-
-# Save index
-index_gmm <- reduce(combinations, bind_rows)
-index_gmm$model_id <- 1:length(combinations)
-save(index_gmm, file = here("analysis", "rosalind", "data", "index_gmm.Rdata"))
+write_models(inputs1, target)
 
 ###############################################################################
 ####                                                                      #####
-####          create input files: PREDICTORS OF CLASS MEMBERSHIP          #####
+####     2. Generate input files for predictors of class membership       #####
 ####                                                                      #####
 ###############################################################################
 
 # Pick base models ------------------------------------------------------------
-pick <- combinations %>%
+pick <- comb1 %>%
     # Pick base models
     keep(~ (.x$y == "gad" & .x$classes == 5) | 
            (.x$y == "phq" & .x$classes == 5)) 
+names(pick) <- c("gad", "phq")
 
 # Define sets of covariates ---------------------------------------------------
-to_include <- list(a = "age", 
-                   b = "female",
-                   c = "child6",
-                   d = "livalon",
-                   e = "renting",
-                   f = "kwself01")
-to_include$g <- reduce(to_include, c) 
+
+unadj <- list(role      = "is_staff",
+              ethnicity = c("eth_mixed", "eth_asian", "eth_black", "eth_other"),
+              yngchild  = "child6",
+              numchild  = c("nc_0", "nc_1", "nc_2", "nc_3"),
+              care      = "othercare",
+              shield    = "shield_isol",
+              kw        = "kw",
+              livalon   = "livalon",
+              rent      = "renting",
+              pranx     = "pranx",
+              prdep     = "predep")
+adj <- map(unadj, ~ c("age", "female", .x)) 
+names(adj) <- paste0(names(adj), "_adj")
+opts <- vec_c(unadj, adj)
+opts$age <- "age"
+opts$sex <- "female"
+opts$agesex <- c("age", "female")
 
 # Create combinations of models/covariates ------------------------------------
 
-combinations <- cross(list(mod = pick, r3step = to_include))
+comb2 <- cross(list(mod = pick, r3step = opts))
+names(comb2) <- cross(list(names(pick), names(opts))) %>%
+    map_chr(~ paste0(.x[[1]], "_", .x[[2]]))
 
-inputs2 <- combinations %>%
+inputs2 <- comb2 %>%
     map(~ flatten(list_merge(.x[1], .x[2]))) %>%
     map(~ exec(make_input, !!!.x))
 
-write_models(inputs2,
-             stub = "r3step",
-             target = here("analysis", "rosalind", "local"))
+# Delete old files, if they exist
+target <- here("analysis", "mplus", "input_files", "r3step")
+file_delete(dir_ls(target))
 
-# Save index
-index_r3step <- map_dfr(combinations,
-                        ~ .x$mod,
-                        .id = "model_id") %>%
-    select(model_id, y, classes)
+# Write input files
+write_models(inputs2, target)
 
-save(index_r3step,
-     file = here("analysis", 
-                 "rosalind",
-                 "data", 
-                 "index_r3step.Rdata"))
+
+###############################################################################
+####                                                                      #####
+####                            Generate index                            #####
+####                                                                      #####
+###############################################################################
+
+inp <- dir_ls(here("analysis", "mplus", "input_files"),
+              recurse = TRUE,
+              glob = "*.inp") %>%
+    path_rel(here("analysis", "mplus", "input_files"))
+
+writeLines(inp, here("analysis", "mplus", "data", "index"))
