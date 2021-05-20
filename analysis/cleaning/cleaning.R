@@ -174,7 +174,9 @@ bl <- bl %>%
                                accom == "Missing" ~ NA,
                                TRUE ~ FALSE),
            accom = recode_accom(replace_na(accom, "Missing")),
-           relat = recode_relat(replace_na(relat, "Missing")))
+           relat = recode_relat(replace_na(relat, "Missing")),
+           prev_depress = str_detect(diagnoses, "Depression"),
+           prev_gad = str_detect(bl$diagnoses, "anxiety|Panic attack|PTSD"))
 
 ###############################################################################
 ####                                                                      #####
@@ -369,6 +371,7 @@ baseline <- bl %>% select(pid,
                           midpoint_bl = midpoint,
                           excluded, max_wave,
                           age, female, is_staff, ethnic_f, child6, numchild,
+                          prev_depress, prev_gad,
                           highrisk, othercare, shield_isol, kwself_b,
                           livalon, renting)
 
