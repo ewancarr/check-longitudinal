@@ -1,0 +1,93 @@
+TITLE: GMM model for PHQ, 5 classes
+DATA: FILE = data/check_wide.dat;
+VARIABLE: 
+NAMES = pid rw fstv00 fstv03 fstv05
+fstv07 fstv09 fstv11 fstv13 fstv15
+fstv17 fstv19 fstv21 fstv23 fstv25
+fstv27 fstv29 fstv31 fstv33 fstv35
+fstv37 fstv39 fstv41 fstv43 fstv45
+fstv47 fstv49 fstv51 fstv53 furcu00
+furcu03 furcu05 furcu07 furcu09 furcu11
+furcu13 furcu15 furcu17 furcu19 furcu21
+furcu23 furcu25 furcu27 furcu29 furcu31
+furcu33 furcu35 furcu37 furcu39 furcu41
+furcu43 furcu45 furcu47 furcu49 furcu51
+furcu53 furev00 furev03 furev05 furev07
+furev09 furev11 furev13 furev15 furev17
+furev19 furev21 furev23 furev25 furev27
+furev29 furev31 furev33 furev35 furev37
+furev39 furev41 furev43 furev45 furev47
+furev49 furev51 furev53 gad00 gad03
+gad05 gad07 gad09 gad11 gad13 gad15
+gad17 gad19 gad21 gad23 gad25 gad27
+gad29 gad31 gad33 gad35 gad37 gad39
+gad41 gad43 gad45 gad47 gad49 gad51
+gad53 phq00 phq03 phq05 phq07 phq09
+phq11 phq13 phq15 phq17 phq19 phq21
+phq23 phq25 phq27 phq29 phq31 phq33
+phq35 phq37 phq39 phq41 phq43 phq45
+phq47 phq49 phq51 phq53 prob00 prob03
+prob05 prob07 prob09 prob11 prob13
+prob15 prob17 prob19 prob21 prob23
+prob25 prob27 prob29 prob31 prob33
+prob35 prob37 prob39 prob41 prob43
+prob45 prob47 prob49 prob51 prob53
+secv00 secv03 secv05 secv07 secv09
+secv11 secv13 secv15 secv17 secv19
+secv21 secv23 secv25 secv27 secv29
+secv31 secv33 secv35 secv37 secv39
+secv41 secv43 secv45 secv47 secv49
+secv51 secv53 stmat00 stmat03 stmat05
+stmat07 stmat09 stmat11 stmat13 stmat15
+stmat17 stmat19 stmat21 stmat23 stmat25
+stmat27 stmat29 stmat31 stmat33 stmat35
+stmat37 stmat39 stmat41 stmat43 stmat45
+stmat47 stmat49 stmat51 stmat53 stmed00
+stmed03 stmed05 stmed07 stmed09 stmed11
+stmed13 stmed15 stmed17 stmed19 stmed21
+stmed23 stmed25 stmed27 stmed29 stmed31
+stmed33 stmed35 stmed37 stmed39 stmed41
+stmed43 stmed45 stmed47 stmed49 stmed51
+stmed53 stper00 stper03 stper05 stper07
+stper09 stper11 stper13 stper15 stper17
+stper19 stper21 stper23 stper25 stper27
+stper29 stper31 stper33 stper35 stper37
+stper39 stper41 stper43 stper45 stper47
+stper49 stper51 stper53 stpla00 stpla03
+stpla05 stpla07 stpla09 stpla11 stpla13
+stpla15 stpla17 stpla19 stpla21 stpla23
+stpla25 stpla27 stpla29 stpla31 stpla33
+stpla35 stpla37 stpla39 stpla41 stpla43
+stpla45 stpla47 stpla49 stpla51 stpla53
+is_staff age female child6 highrisk
+othercare shield_isol kw pranx prdep
+livalon renting eth_asian eth_black
+eth_mixed eth_other eth_white nc_0 nc_1
+nc_2 nc_3; 
+USEVARIABLES = phq00-phq53;
+CLASSES = C(5);
+IDVARIABLE = pid;
+WEIGHT = rw;
+AUXILIARY = age (R3STEP) female
+(R3STEP);
+MISSING=.;
+ANALYSIS: 
+PROCESSORS = 4;
+TYPE = MIXTURE; 
+STARTS = 500 100;
+ 
+MODEL:
+%OVERALL%
+i s q cu | phq00@.00 phq03@.03 phq05@.05 phq07@.07
+phq09@.09 phq11@.11 phq13@.13 phq15@.15
+phq17@.17 phq19@.19 phq21@.21 phq23@.23
+phq25@.25 phq27@.27 phq29@.29 phq31@.31
+phq33@.33 phq35@.35 phq37@.37 phq39@.39
+phq41@.41 phq43@.43 phq45@.45 phq47@.47
+phq49@.49 phq51@.51 phq53@.53;
+cu@0;
+OUTPUT:
+SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
+PLOT:
+TYPE IS PLOT1 PLOT2 PLOT3;
+SERIES IS phq00-phq53 (*);
