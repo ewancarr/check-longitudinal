@@ -1,5 +1,5 @@
 TITLE: GMM model for GAD, 7 classes
-DATA: FILE = data/check_wide.dat;
+DATA: FILE = ../../data/check_wide.dat;
 VARIABLE: 
 NAMES = pid rw fstv00 fstv03 fstv05
 fstv07 fstv09 fstv11 fstv13 fstv15

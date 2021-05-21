@@ -214,7 +214,7 @@ make_input <- function(dpath,
     "))
 }
 
-comb1 <- list(dpath           = "data/check_wide.dat",
+comb1 <- list(dpath           = "../../data/check_wide.dat",
               y               = c("gad", "phq"),
               form            = "cubic",
               names_statement = input_file[4],
@@ -313,6 +313,8 @@ write_models(inputs2, target)
 inp <- dir_ls(here("analysis", "mplus", "input_files"),
               recurse = TRUE,
               glob = "*.inp") %>%
-    path_rel(here("analysis", "mplus", "input_files"))
+    path_rel(here("analysis", "mplus", "input_files")) %>%
+    path_split() %>%
+    map_chr(~ paste(.x[1], .x[2]))
 
 writeLines(inp, here("analysis", "mplus", "data", "index"))
