@@ -12,6 +12,8 @@ gmm gmm_phq_6_cubic.inp
 gmm gmm_phq_7_cubic.inp
 r3step gad_age.inp
 r3step gad_agesex.inp
+r3step gad_anychild.inp
+r3step gad_anychild_adj.inp
 r3step gad_care.inp
 r3step gad_care_adj.inp
 r3step gad_ethnicity.inp
@@ -20,8 +22,6 @@ r3step gad_kw.inp
 r3step gad_kw_adj.inp
 r3step gad_livalon.inp
 r3step gad_livalon_adj.inp
-r3step gad_numchild.inp
-r3step gad_numchild_adj.inp
 r3step gad_pranx.inp
 r3step gad_pranx_adj.inp
 r3step gad_prdep.inp
@@ -37,6 +37,8 @@ r3step gad_yngchild.inp
 r3step gad_yngchild_adj.inp
 r3step phq_age.inp
 r3step phq_agesex.inp
+r3step phq_anychild.inp
+r3step phq_anychild_adj.inp
 r3step phq_care.inp
 r3step phq_care_adj.inp
 r3step phq_ethnicity.inp
@@ -45,8 +47,6 @@ r3step phq_kw.inp
 r3step phq_kw_adj.inp
 r3step phq_livalon.inp
 r3step phq_livalon_adj.inp
-r3step phq_numchild.inp
-r3step phq_numchild_adj.inp
 r3step phq_pranx.inp
 r3step phq_pranx_adj.inp
 r3step phq_prdep.inp
@@ -60,3 +60,21 @@ r3step phq_shield.inp
 r3step phq_shield_adj.inp
 r3step phq_yngchild.inp
 r3step phq_yngchild_adj.inp
+tvcov gad_fstv.inp
+tvcov gad_furcu.inp
+tvcov gad_furev.inp
+tvcov gad_prob.inp
+tvcov gad_secv.inp
+tvcov gad_stmat.inp
+tvcov gad_stmed.inp
+tvcov gad_stper.inp
+tvcov gad_stpla.inp
+tvcov phq_fstv.inp
+tvcov phq_furcu.inp
+tvcov phq_furev.inp
+tvcov phq_prob.inp
+tvcov phq_secv.inp
+tvcov phq_stmat.inp
+tvcov phq_stmed.inp
+tvcov phq_stper.inp
+tvcov phq_stpla.inp

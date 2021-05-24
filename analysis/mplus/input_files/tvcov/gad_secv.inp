@@ -61,16 +61,20 @@ stpla35 stpla37 stpla39 stpla41 stpla43
 stpla45 stpla47 stpla49 stpla51 stpla53
 is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
-livalon renting eth_asian eth_black
-eth_mixed eth_other eth_white nc_0 nc_1
-nc_2 nc_3; 
-USEVARIABLES = gad00-gad53;
+livalon renting anychild eth_asian
+eth_black eth_mixed eth_other eth_white
+nc_0 nc_1 nc_2 nc_3; 
+USEVARIABLES = gad00-gad53
+secv00 secv03 secv05 secv07 secv09
+secv11 secv13 secv15 secv17 secv19
+secv21 secv23 secv25 secv27 secv29
+secv31 secv33 secv35 secv37 secv39
+secv41 secv43 secv45 secv47 secv49
+secv51 secv53;
 CLASSES = C(5);
 IDVARIABLE = pid;
 WEIGHT = rw;
-AUXILIARY = age (R3STEP) female (R3STEP)
-nc_0 (R3STEP) nc_1 (R3STEP) nc_2
-(R3STEP) nc_3 (R3STEP);
+
 MISSING=.;
 ANALYSIS: 
 PROCESSORS = 4;
@@ -87,6 +91,33 @@ gad33@.33 gad35@.35 gad37@.37 gad39@.39
 gad41@.41 gad43@.43 gad45@.45 gad47@.47
 gad49@.49 gad51@.51 gad53@.53;
 cu@0;
+gad00 ON secv00;
+gad03 ON secv03;
+gad05 ON secv05;
+gad07 ON secv07;
+gad09 ON secv09;
+gad11 ON secv11;
+gad13 ON secv13;
+gad15 ON secv15;
+gad17 ON secv17;
+gad19 ON secv19;
+gad21 ON secv21;
+gad23 ON secv23;
+gad25 ON secv25;
+gad27 ON secv27;
+gad29 ON secv29;
+gad31 ON secv31;
+gad33 ON secv33;
+gad35 ON secv35;
+gad37 ON secv37;
+gad39 ON secv39;
+gad41 ON secv41;
+gad43 ON secv43;
+gad45 ON secv45;
+gad47 ON secv47;
+gad49 ON secv49;
+gad51 ON secv51;
+gad53 ON secv53;
 OUTPUT:
 SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
 PLOT:

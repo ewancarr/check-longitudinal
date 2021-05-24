@@ -61,15 +61,19 @@ stpla35 stpla37 stpla39 stpla41 stpla43
 stpla45 stpla47 stpla49 stpla51 stpla53
 is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
-livalon renting eth_asian eth_black
-eth_mixed eth_other eth_white nc_0 nc_1
-nc_2 nc_3; 
-USEVARIABLES = phq00-phq53;
+livalon renting anychild eth_asian
+eth_black eth_mixed eth_other eth_white
+nc_0 nc_1 nc_2 nc_3; 
+USEVARIABLES = phq00-phq53
+furcu03 furcu05 furcu07 furcu09 furcu11
+furcu13 furcu15 furcu17 furcu19 furcu21
+furcu23 furcu25 furcu27 furcu29 furcu31
+furcu33 furcu35 furcu37 furcu39 furcu41
+furcu43 furcu45 furcu47 furcu49;
 CLASSES = C(5);
 IDVARIABLE = pid;
 WEIGHT = rw;
-AUXILIARY = nc_0 (R3STEP) nc_1 (R3STEP)
-nc_2 (R3STEP) nc_3 (R3STEP);
+
 MISSING=.;
 ANALYSIS: 
 PROCESSORS = 4;
@@ -86,6 +90,30 @@ phq33@.33 phq35@.35 phq37@.37 phq39@.39
 phq41@.41 phq43@.43 phq45@.45 phq47@.47
 phq49@.49 phq51@.51 phq53@.53;
 cu@0;
+phq03 ON furcu03;
+phq05 ON furcu05;
+phq07 ON furcu07;
+phq09 ON furcu09;
+phq11 ON furcu11;
+phq13 ON furcu13;
+phq15 ON furcu15;
+phq17 ON furcu17;
+phq19 ON furcu19;
+phq21 ON furcu21;
+phq23 ON furcu23;
+phq25 ON furcu25;
+phq27 ON furcu27;
+phq29 ON furcu29;
+phq31 ON furcu31;
+phq33 ON furcu33;
+phq35 ON furcu35;
+phq37 ON furcu37;
+phq39 ON furcu39;
+phq41 ON furcu41;
+phq43 ON furcu43;
+phq45 ON furcu45;
+phq47 ON furcu47;
+phq49 ON furcu49;
 OUTPUT:
 SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
 PLOT:

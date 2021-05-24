@@ -90,7 +90,8 @@ baseline <- bl %>%
            livalon,
            renting) %>%
     mutate(eth = tolower(as.character(ethnic_f)),
-           othercare = othercare == "Yes") %>%
+           othercare = othercare == "Yes",
+           anychild = parse_number(as.character(nc)) > 0) %>%
     drop_na() %>%
     dummy_cols(select_columns = c("eth", "nc")) %>%
     select(-eth, -ethnic_f, -nc) 
@@ -106,6 +107,47 @@ wide_data %>%
     gather(measure, pct_complete) %>%
     as.data.frame()
 
+# Replace missing TVCs with a different missingness indicator -----------------
+
+# Individuals missing information on TVCs are dropped from the analysis in Mplus.
+# However, many of these individuals are also missing the corresponding outcome
+# data. On the Mplus forum[1], Bengt suggests setting missing TVCs to another 
+# values (i.e. besides NA):
+# 
+# > Bengt O. Muthen posted on Saturday, October 19, 2013 - 3:33 pm
+# > Don't use a missing data flag for the time-varying covariates; use some other
+# > number. If the tvs is missing at time t and the outcome at the corresponding
+# > time is missing, such timepoints still won't contribute to the likelihood
+# > computations. By not using a missing data flag, you avoid deleting subjects who
+# > have missing on any tvcs.
+#  
+# > ZHANG Liang posted on Monday, March 09, 2015 - 6:04 am 	
+# > Then what should I do with the missing values on TVCs? Should I just leave them
+# > as blanks in .dat file while missing values on other variables are represented
+# > as missing data flag?
+#  
+# > Bengt O. Muthen posted on Monday, March 09, 2015 - 6:08 pm 	
+# > Just use some other value like 888 instead of 999.
+# 
+# So, here I'm setting all TVCs to '777' if the corresponding outcomes are 
+# both missing (i.e. PHQ and GAD at that timepoint).
+# 
+# [1]: http://www.statmodel.com/discussion/messages/14/3460.html?1555003621
+
+times <- select(wide_data, starts_with("fstv")) %>% names() %>% str_replace("fstv", "")
+stubs <- c("fstv", "secv", "furcu", "furev", "prob", "stmat", "stmed", "stper",
+           "stpla")
+
+for (tp in times) {
+    for (s in stubs) {
+        stp <- paste0(s, tp)
+        wide_data[[stp]] <- ifelse(is.na(wide_data[[paste0("phq", tp)]]) & 
+                                   is.na(wide_data[[paste0("gad", tp)]]),
+                                   777,
+                                   wide_data[[stp]])
+    }
+}
+
 # Export, create input file ---------------------------------------------------
 
 prep <- function(dat, stub, p) {
@@ -115,7 +157,6 @@ prep <- function(dat, stub, p) {
     writeLines(input_file, paste0(p, "/", stub, ".inp"))
     return(input_file)
 }
-
 
 input_file <- prep(wide_data,       
                    "check_wide",
@@ -146,7 +187,8 @@ make_input <- function(dpath,
                        names_statement,
                        starts = FALSE,
                        boot = FALSE,
-                       r3step = FALSE) {
+                       r3step = FALSE,
+                       tvc = list(FALSE, "")) {
     # Get number of time points from input file
     dap <- str_split(names_statement, " ") %>%
         unlist() %>%
@@ -167,6 +209,9 @@ make_input <- function(dpath,
     title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
     # Define 'use variables'
     uv <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
+    if (tvc[[1]]) {
+        uv <- paste0(uv, "\n", str_wrap(paste(tvc[[2]], collapse = " "), 40))
+    }
     # Define plot SERIES
     series <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
     # Define STARTS, PROCESSORS, LRT bootstrap
@@ -188,6 +233,14 @@ make_input <- function(dpath,
     } else {
         r3step <- ""
     }
+    # Define TVCs -------------------------------------------------------------
+    if (tvc[[1]]) {
+        tvc_statement <- paste0(y,
+                                sprintf("%02d", parse_number(tvc[[2]])),
+                                " ON ", tvc[[2]], ";", collapse = "\n")
+    } else {
+        tvc_statement <- ""
+    }
     # Generate the model
     return(str_glue("
     TITLE: {title}
@@ -206,6 +259,7 @@ make_input <- function(dpath,
     %OVERALL%
     {ff} | {right_side};
     {constraints};
+    {tvc_statement}
     OUTPUT:
     SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 {tech14};
     PLOT:
@@ -230,7 +284,6 @@ inputs1 <- map(comb1, ~ exec(make_input, !!!.x))
 # Add "SAVEDATA" statement
 inputs1 <- map2(inputs1, 1:length(inputs1),
                ~ paste0(.x, str_glue("\n\nSAVEDATA: \nFILE = save{.y}.dat;\nSAVE = CPROBABILITIES;")))
-
 
 # Name each input file
 get_name <- function(i) {
@@ -259,6 +312,7 @@ write_models(inputs1, target)
 ####                                                                      #####
 ###############################################################################
 
+
 # Pick base models ------------------------------------------------------------
 pick <- comb1 %>%
     # Pick base models
@@ -267,18 +321,17 @@ pick <- comb1 %>%
 names(pick) <- c("gad", "phq")
 
 # Define sets of covariates ---------------------------------------------------
-
 unadj <- list(role      = "is_staff",
               ethnicity = c("eth_mixed", "eth_asian", "eth_black", "eth_other"),
               yngchild  = "child6",
-              numchild  = c("nc_0", "nc_1", "nc_2", "nc_3"),
+              anychild  = "anychild",
               care      = "othercare",
               shield    = "shield_isol",
               kw        = "kw",
               livalon   = "livalon",
               rent      = "renting",
               pranx     = "pranx",
-              prdep     = "predep")
+              prdep     = "prdep")
 adj <- map(unadj, ~ c("age", "female", .x)) 
 names(adj) <- paste0(names(adj), "_adj")
 opts <- vec_c(unadj, adj)
@@ -287,7 +340,6 @@ opts$sex <- "female"
 opts$agesex <- c("age", "female")
 
 # Create combinations of models/covariates ------------------------------------
-
 comb2 <- cross(list(mod = pick, r3step = opts))
 names(comb2) <- cross(list(names(pick), names(opts))) %>%
     map_chr(~ paste0(.x[[1]], "_", .x[[2]]))
@@ -303,6 +355,60 @@ file_delete(dir_ls(target))
 # Write input files
 write_models(inputs2, target)
 
+###############################################################################
+####                                                                      #####
+####          3. Generate input files for time-varying predictors         #####
+####                                                                      #####
+###############################################################################
+
+# Check: how many of the TVCs have zero variance?
+rep <- sel %>% 
+    ungroup() %>%
+    select(dap, pid,
+           phq_total, gad_total,
+           had_v1, had_v2,
+           fur_cu, fur_ev,
+           probdef,
+           starts_with("s_")) %>%
+    group_by(dap) 
+
+rep %>%
+    summarise(across(everything(), ~ var(.x, na.rm = TRUE) > 0)) %>%
+    print(n = 50)
+
+# Pick base models ------------------------------------------------------------
+pick <- comb1 %>%
+    # Pick base models
+    keep(~ (.x$y == "gad" & .x$classes == 5) | 
+           (.x$y == "phq" & .x$classes == 5)) 
+names(pick) <- c("gad", "phq")
+
+# Add TVCs --------------------------------------------------------------------
+non_zero <- function(i) {
+    wide_data %>%
+        select(starts_with(i)) %>%
+        mutate(across(everything(), na_if, 777)) %>%
+        summarise(across(everything(), ~ var(.x, na.rm = TRUE) > 0)) %>%
+        gather(k, v) %>%
+        filter(v) %>%
+        pluck("k")
+}
+tvcs <- map(stubs, non_zero) %>% map(~ list(TRUE, .x))
+names(tvcs) <- map_chr(tvcs, ~ str_extract(.x[[2]][[1]], "^[a-z]+"))
+comb3 <- cross(list(mod = pick, tvc = tvcs))
+
+inputs3 <- comb3 %>%
+    map(~ flatten(list_merge(.x[1], .x[2]))) %>%
+    map(~ exec(make_input, !!!.x))
+
+# Delete old files, if they exist
+target <- here("analysis", "mplus", "input_files", "tvcov")
+file_delete(dir_ls(target))
+
+# Write input files
+names(inputs3) <- cross(list(names(pick), names(tvcs))) %>%
+    map_chr(~ paste0(.x[[1]], "_", .x[[2]]))
+write_models(inputs3, target)
 
 ###############################################################################
 ####                                                                      #####
