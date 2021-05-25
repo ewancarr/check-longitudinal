@@ -12,6 +12,7 @@ analysis/growth_curves/mplus/*
 analysis/mplus/fits*
 analysis/mplus/local*
 analysis/mplus/saved_fits/*
+analysis/growth_curves_old/**
 analysis/mplus/scratch/*
 reference/*.~lock*
 renv
