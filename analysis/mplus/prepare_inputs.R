@@ -188,7 +188,9 @@ make_input <- function(dpath,
                        starts = FALSE,
                        boot = FALSE,
                        r3step = FALSE,
-                       tvc = list(FALSE, "")) {
+                       tvc = list(use = FALSE,
+                                  vars = "",
+                                  constrain = FALSE)) {
     # Get number of time points from input file
     dap <- str_split(names_statement, " ") %>%
         unlist() %>%
@@ -234,10 +236,11 @@ make_input <- function(dpath,
         r3step <- ""
     }
     # Define TVCs -------------------------------------------------------------
-    if (tvc[[1]]) {
+    delim <- if_else(tvc$constrain, " (1);", ";")
+    if (tvc$use) {
         tvc_statement <- paste0(y,
                                 sprintf("%02d", parse_number(tvc[[2]])),
-                                " ON ", tvc[[2]], ";", collapse = "\n")
+                                " ON ", tvc$var, delim, collapse = "\n")
     } else {
         tvc_statement <- ""
     }
@@ -393,21 +396,30 @@ non_zero <- function(i) {
         filter(v) %>%
         pluck("k")
 }
-tvcs <- map(stubs, non_zero) %>% map(~ list(TRUE, .x))
-names(tvcs) <- map_chr(tvcs, ~ str_extract(.x[[2]][[1]], "^[a-z]+"))
+tvcs <- map(stubs, non_zero)
+tvcs <- cross(list(tvc = tvcs, constrain = c(TRUE, FALSE))) %>%
+    map(~ list(use = TRUE, vars = .x$tvc, constrain = .x$constrain))
 comb3 <- cross(list(mod = pick, tvc = tvcs))
 
 inputs3 <- comb3 %>%
     map(~ flatten(list_merge(.x[1], .x[2]))) %>%
     map(~ exec(make_input, !!!.x))
 
+names(inputs3) <- map_chr(comb3,
+                          ~ paste(.x$mod$model,
+                                  .x$mod$y,
+                                  .x$mod$classes,
+                                  str_extract(.x$tvc$vars[[1]], "^[a-z]+"),
+                                  if_else(.x$tvc$constrain,
+                                          "constrained",
+                                          "free"),
+                                  sep = "_"))
+
 # Delete old files, if they exist
 target <- here("analysis", "mplus", "input_files", "tvcov")
 file_delete(dir_ls(target))
 
 # Write input files
-names(inputs3) <- cross(list(names(pick), names(tvcs))) %>%
-    map_chr(~ paste0(.x[[1]], "_", .x[[2]]))
 write_models(inputs3, target)
 
 ###############################################################################
