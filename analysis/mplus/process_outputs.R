@@ -115,6 +115,13 @@ date_lookup <- sel %>%
 class_summaries <- class_summaries %>%
     left_join(date_lookup, by = "dap")
 
+# Get individual IDs by class -------------------------------------------------
+class_ids <- map_dfr(gmm, "savedata", .id = "model_id") %>%
+    as_tibble() %>%
+    clean_names() %>%
+    select(model_id, pid, c) %>%
+    separate(model_id, c("model", "y", "nclasses", "form"))
+
 ###############################################################################
 ####                                                                      #####
 ####                             R3STEP MODELS                            #####
@@ -148,6 +155,7 @@ odds_ratios <- map(r3step, "r3step") %>%
 save(fit_stat,
      class_size,
      class_summaries,
+     class_ids,
      r3step,
      odds_ratios,
      file = here("analysis", "outputs", "class_summaries.Rdata"))
