@@ -112,12 +112,9 @@ count(aw, dap) %>% print(n = 100)
 
 bl <- filter(aw, dap == 0)
 
-# Role, age -------------------------------------------------------------------
+# Age, gender ------------------------------------------------------------------
 
-bl$is_staff <- str_detect(bl$role, "staff")
 bl$age <- as.numeric(bl$age)
-
-# Gender ----------------------------------------------------------------------
 
 # As in baseline paper, we're randomly assigning "Other" to either "Female" or
 # "Male" based on sample proportions.
@@ -130,6 +127,30 @@ bl$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
                                 size = sum(to_replace),     # FALSE = male
                                 prob = c(p_female, 1 - p_female),
                                 replace = TRUE)
+
+# Role ------------------------------------------------------------------------
+
+bl$is_staff <- str_detect(bl$role, "staff")
+
+bl <- bl %>%
+    mutate(role_cat = factor(case_when(staff_role %in% c("Academic",
+                                                         "Specialists and professionals",
+                                                         "Management") ~ "Academic, specialist and management",
+                                       staff_role %in% c("Research",
+                                                         "Clerical",
+                                                         "Technical") ~ "Research, clerical and technical",
+                                       staff_role %in% c("Teaching",
+                                                         "Facilities",
+                                                         "Clinical") ~ "Teaching, facilities and clinical",
+                                       !is_staff ~ "PGR student",
+                                       TRUE ~ "Missing"),
+                             levels = c("Academic, specialist and management",
+                                        "Research, clerical and technical",
+                                        "Teaching, facilities and clinical",
+                                        "PGR student",
+                                        "Missing")))
+
+count(bl, role_cat)
 
 # Ethnicity -------------------------------------------------------------------
 
@@ -162,6 +183,7 @@ bl <- bl %>%
                                                            "Currently isolating") ~ TRUE,
                                    is.na(isolation_status) ~ NA,
                                    TRUE ~ FALSE),
+           shield_only = isolation_status == "Currently shielding",
            chronic_any = chronic_any == "Yes",
            probdef = covid_suspect_self %in% c("Probably", "Definitely"),
            kwself = case_when(keyworker_self == "None of these" ~ "No",
@@ -372,12 +394,14 @@ baseline <- bl %>% select(pid,
                           excluded, max_wave,
                           age, female, is_staff, ethnic_f, child6, numchild,
                           prev_depress, prev_gad,
-                          highrisk, othercare, shield_isol, kwself_b,
-                          livalon, renting)
+                          highrisk, othercare, shield_isol, shield_only,
+                          kwself_b,
+                          livalon, renting,
+                          role_cat, chronic_any, relat)
 
 sel <- full_join(repeated, baseline, by = "pid")
 
-# Check analysis dataset is unique by "pid" and "iw"
+# Check analysis dataset is unique by "pid" and "dap"
 dupes <- sel %>%
     group_by(pid, dap) %>%
     mutate(n = n()) %>%
