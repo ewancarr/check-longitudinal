@@ -10,6 +10,7 @@ library(fs)
 library(MplusAutomation)
 library(fastDummies)
 library(naniar)
+library(forcats)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 
 # This script prepares Mplus input files for the longitudinal paper. There are
@@ -71,6 +72,21 @@ wide_data <- sel %>%
     select(-dap) %>%
     spread(k, v)
 
+# Recode some baseline variables ----------------------------------------------
+
+bl <- bl %>%
+    mutate(across(c(relat, role_cat), ~ fct_drop(na_if(.x, "Missing"))),
+           rc = fct_recode(role_cat,
+                           acad = "Academic, specialist and management",
+                           rsch = "Research, clerical and technical",
+                           teac = "Teaching, facilities and clinical",
+                           pgrs = "PGR student"),
+           relat = fct_recode(relat,
+                              sing = "Single",
+                              part = "Civil partnership, married, cohabiting, non-cohabiting",
+                              divo = "Divorced, separated, widowed"))
+
+
 # Add baseline variables ------------------------------------------------------
 
 baseline <- bl %>%
@@ -88,13 +104,17 @@ baseline <- bl %>%
            pranx = prev_gad,
            prdep = prev_depress,
            livalon,
+           shonly = shield_only,
+           rc,
+           chron = chronic_any,
+           relat,
            renting) %>%
     mutate(eth = tolower(as.character(ethnic_f)),
            othercare = othercare == "Yes",
            anychild = parse_number(as.character(nc)) > 0) %>%
     drop_na() %>%
-    dummy_cols(select_columns = c("eth", "nc")) %>%
-    select(-eth, -ethnic_f, -nc) 
+    dummy_cols(select_columns = c("relat", "rc", "eth", "nc")) %>%
+    select(-eth, -ethnic_f, -nc, -relat, -rc) 
 
 wide_data <- inner_join(wide_data, baseline, by = "pid")
 
@@ -188,6 +208,7 @@ make_input <- function(dpath,
                        starts = FALSE,
                        boot = FALSE,
                        r3step = FALSE,
+                       tech11 = TRUE,
                        tvc = list(use = FALSE,
                                   vars = "",
                                   constrain = FALSE)) {
@@ -221,6 +242,7 @@ make_input <- function(dpath,
     st <- ifelse(starts, "\nSTARTS = 500 100;\n", "") 
     lrt <- ifelse(boot, "LRTBOOTSTRAP = 50;", "")
     tech14 = ifelse(boot, "TECH14", "")
+    tech11 = ifelse(tech11, "TECH11", "")
     # Define functional form
     ff <- case_when(form == "quadratic" ~ "i s q",
                     form == "cubic" ~ "i s q cu")
@@ -264,7 +286,7 @@ make_input <- function(dpath,
     {constraints};
     {tvc_statement}
     OUTPUT:
-    SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 {tech14};
+    SAMPSTAT STANDARDIZED CINTERVAL {tech11} {tech14};
     PLOT:
     TYPE IS PLOT1 PLOT2 PLOT3;
     SERIES IS {series} (*);
@@ -315,26 +337,37 @@ write_models(inputs1, target)
 ####                                                                      #####
 ###############################################################################
 
+set_starts <- function(model) {
+    model$starts <- FALSE
+    model$boot <- FALSE
+    model$tech11 <- FALSE
+    return(model)
+}
 
 # Pick base models ------------------------------------------------------------
 pick <- comb1 %>%
     # Pick base models
-    keep(~ (.x$y == "gad" & .x$classes == 5) | 
-           (.x$y == "phq" & .x$classes == 5)) 
+    keep(~ (.x$y == "gad" & .x$classes == 4) | 
+           (.x$y == "phq" & .x$classes == 4)) %>%
+    map(set_starts)
 names(pick) <- c("gad", "phq")
 
 # Define sets of covariates ---------------------------------------------------
-unadj <- list(role      = "is_staff",
-              ethnicity = c("eth_mixed", "eth_asian", "eth_black", "eth_other"),
-              yngchild  = "child6",
-              anychild  = "anychild",
-              care      = "othercare",
-              shield    = "shield_isol",
-              kw        = "kw",
-              livalon   = "livalon",
-              rent      = "renting",
-              pranx     = "pranx",
-              prdep     = "prdep")
+unadj <- list(role        = "is_staff",
+              ethnicity   = c("eth_mixed", "eth_asian", "eth_black", "eth_other"),
+              relat       = c("relat_sing", "relat_divo"),
+              role_cat    = c("rc_rsch", "rc_teac", "rc_pgrs"),
+              chronic     = "chron",
+              yngchild    = "child6",
+              anychild    = "anychild",
+              care        = "othercare",
+              shield_isol = "shield_isol",
+              shield_only = "shonly",
+              kw          = "kw",
+              livalon     = "livalon",
+              rent        = "renting",
+              pranx       = "pranx",
+              prdep       = "prdep")
 adj <- map(unadj, ~ c("age", "female", .x)) 
 names(adj) <- paste0(names(adj), "_adj")
 opts <- vec_c(unadj, adj)
@@ -382,8 +415,9 @@ rep %>%
 # Pick base models ------------------------------------------------------------
 pick <- comb1 %>%
     # Pick base models
-    keep(~ (.x$y == "gad" & .x$classes == 5) | 
-           (.x$y == "phq" & .x$classes == 5)) 
+    keep(~ (.x$y == "gad" & .x$classes == 4) | 
+           (.x$y == "phq" & .x$classes == 4)) %>%
+    map(set_starts)
 names(pick) <- c("gad", "phq")
 
 # Add TVCs --------------------------------------------------------------------
