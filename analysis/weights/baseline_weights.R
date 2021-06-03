@@ -322,7 +322,6 @@ w <- ifelse(w > limit, limit, w)
 pgr$rw <- w
 student_weights <- pgr
 
-
 ###############################################################################
 ####                                                                      #####
 ####         Create harmonised weights for pooled staff/PGR sample        #####
@@ -350,17 +349,20 @@ sum(pgr$rw)
 # have a mean of 1 and sum to the sample size. For example:
 
 scaling <- sum(staff_weights$rw) / nrow(staff_weights)
-head(cbind(staff_weights$rw,
-     staff_weights$rw / scaling))
+head(cbind(staff_weights$rw, staff_weights$rw / scaling))
 
 # Using (1), each particiant is scaled to represent their size in the population.
 # Using (2), each participant is scaled to represent their size in the sample.
 
-# For now, I'm going with (1), but I need to give this some more thought.
+# Create scaled weights -------------------------------------------------------
 
-weights <- bind_rows(select(staff_weights, pid, rw),
-                     select(student_weights, pid, rw))
+staff_weights <- staff_weights %>%
+    mutate(scaling = sum(rw) / n(),
+           rws = rw / scaling)
 
+student_weights <- student_weights %>%
+    mutate(scaling = sum(rw) / n(),
+           rws = rw / scaling)
 
 ###############################################################################
 ####                                                                      #####
@@ -368,6 +370,7 @@ weights <- bind_rows(select(staff_weights, pid, rw),
 ####                                                                      #####
 ###############################################################################
 
-weights <- bind_rows(select(staff_weights, pid, rw),
-                     select(student_weights, pid, rw))
-save(weights, file = here("data", "clean", "weights.Rdata"))
+weights_bl <- bind_rows(select(staff_weights, pid, rw, rws),
+                        select(student_weights, pid, rw, rws))
+
+save(weights_bl, file = here("data", "clean", "weights_bl.Rdata"))
