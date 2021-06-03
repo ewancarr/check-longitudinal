@@ -61,7 +61,9 @@ stpla35 stpla37 stpla39 stpla41 stpla43
 stpla45 stpla47 stpla49 stpla51 stpla53
 is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
-livalon renting anychild eth_asian
+livalon shonly chron renting anychild
+relat_sing relat_part relat_divo rc_acad
+rc_rsch rc_teac rc_pgrs eth_asian
 eth_black eth_mixed eth_other eth_white
 nc_0 nc_1 nc_2 nc_3; 
 USEVARIABLES = phq00-phq53;
@@ -87,7 +89,7 @@ phq49@.49 phq51@.51 phq53@.53;
 cu@0;
 
 OUTPUT:
-SAMPSTAT STANDARDIZED TECH7 TECH8 TECH11 TECH13 ;
+SAMPSTAT STANDARDIZED CINTERVAL TECH11 ;
 PLOT:
 TYPE IS PLOT1 PLOT2 PLOT3;
 SERIES IS phq00-phq53 (*);
