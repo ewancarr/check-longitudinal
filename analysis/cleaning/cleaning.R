@@ -26,41 +26,6 @@ aw <- aw %>%
 count(aw, max_wave)
 count(aw, excluded)
 
-# Resolve duplicate entries ---------------------------------------------------
-
-n1 <- count(aw, t, name = "n1")
-
-# Some participants have more than one entry per 'wave', and so, have more than
-# 20 entres in total. To fix this, I'm (i) removing unfinished questionnaires
-# and, (ii) for remaining duplicates, selecting a single observation per
-# participant/time based on data completness.
-
-# Remove "unfinished" questionnaires
-table(aw$finished)
-aw <- filter(aw, finished == "True")
-n2 <- count(aw, t, name = "n2")
-
-# Identify duplicates
-aw %>%
-    group_by(pid, t) %>%
-    mutate(n = n()) %>%
-    filter(n > 1) 
-
-# Pick a single entry per person/survey period
-aw <- distinct(aw, pid, t, .keep_all = TRUE)
-    # NOTE: This is selecting the FIRST row in the case of duplicates.
-    #       This might not be ideal -- e.g. we should select the most complete
-    #       row instead. 
-n3 <- count(aw, t, name = "n3")
-
-# Check
-aw %>%
-    count(pid, t) %>%
-    filter(n > 1)
-
-# Produce summary table
-dupes <- reduce(list(n1, n2, n3), full_join, by = "t")
-
 # Remove individuals who only participant once --------------------------------
 
 aw <- aw %>%

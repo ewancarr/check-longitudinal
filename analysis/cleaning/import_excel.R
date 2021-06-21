@@ -160,12 +160,13 @@ aw <- aw %>%
 table(is.na(aw$pid_str))
 
 # Convert string ID to integer
-
 aw <- aw %>%
     mutate(pid = as.integer(factor(pid_str,
                                    levels = unique(pid_str)))) %>%
     arrange(pid, t) %>%
     select(pid, t, pid_str, login_id, extref, everything())
+
+ids <- select(aw, pid, extref, login_id, response_id, ip)
 
 # Create variable identifying 2-monthly questionnaires ------------------------
 
@@ -181,6 +182,35 @@ qtypes <- ar %>%
 aw <- aw %>%
     left_join(qtypes, by = "tid")
 
+# Remove "unfinished" questionnaires ------------------------------------------
+table(aw$finished)
+aw <- filter(aw, finished == "True")
+
+# Resolve duplicate entries ---------------------------------------------------
+
+# Some participants have more than one entry per survey period. To fix this,
+# I'm (i) removing unfinished questionnaires and, (ii) for remaining
+# duplicates, selecting a single observation per participant/time based on data
+# completness.
+
+aw %>%
+    group_by(pid, t) %>%
+    mutate(n = n()) %>%
+    filter(n > 1)
+
+# Calculate, for each row, the percent of complete data
+aw$pct_complete <- apply(aw, 1, function(row) mean(is.na(row)))
+
+# Select a single observation per person/time, based on data completeness
+aw <- aw %>%
+    arrange(pid, t, pct_complete) %>%
+    distinct(pid, t, .keep_all = TRUE)
+
+# Check the data are now unique
+aw %>%
+    count(pid, t) %>%
+    filter(n > 1)
+
 ###############################################################################
 ####                                                                      #####
 ####                                 Save                                 #####
@@ -188,3 +218,4 @@ aw <- aw %>%
 ###############################################################################
 
 save(aw, file = here("data", "clean", "aw.Rdata"))
+save(bl, ids, file = here("data", "clean", "bl.Rdata"))
