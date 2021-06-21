@@ -261,28 +261,43 @@ aw$probdef <- aw$covid_suspect_self %in% c("Probably", "Definitely")
 
 # Date of first/second vaccination --------------------------------------------
 
+get_year <- function(month) {
+    case_when(month %in% c("January",
+                           "February",
+                           "March",
+                           "April",
+                           "May",
+                           "June",
+                           "July",
+                           "August") ~ 2021,
+              month %in% c("September",
+                           "October",
+                           "November",
+                           "December") ~ 2020)
+}
+
+max_na <- function(x) ifelse( !all(is.na(x)), max(x, na.rm = TRUE), NA)
+
 vaccine_dates <- aw %>%
-    # Remove people who are missing 'vaccination year' for both doses
-    filter(!(is.na(dose1_year) & is.na(dose2_year))) %>%
-    # Keep only 'year' values with 4 characters; sets "121" to missing.
-    mutate(across(c(dose1_year, dose2_year), ~ if_else(nchar(.x) == 4, .x, NA_character_))) %>%
+    # Remove people who have not been vaccinated
     group_by(pid) %>%
     arrange(pid, dap) %>%
-    # Select the first non-missing date per person (because these are duplicated)
-    summarise(across(starts_with("dose"), ~ first(na.omit(.x)))) %>%
-    # Remove people missing a first vaccination date,
-    # or whose vaccination date is before 2020 (e.g. "1921").
-    drop_na(dose1_year) %>%
-    filter(dose1_year > 2019) %>%
-    mutate(# If ONLY the day is missing, replace with 15th of the month
-           dose1_day = if_else(!is.na(dose1_month) & !is.na(dose1_year) & is.na(dose1_day), "15", dose1_day),
-           dose2_day = if_else(!is.na(dose2_month) & !is.na(dose2_year) & is.na(dose2_day), "15", dose2_day),
-           # Generate dates
-           dd1 = ymd(paste(dose1_year, dose1_month, dose1_day)),
-           dd2 = ymd(paste(dose2_year, dose2_month, dose2_day), 
-                     quiet = TRUE)) %>%
+    mutate(which_dose = case_when(dose_n == "One" ~ 1,
+                                  dose_n == "Two" ~ 2,
+                                  TRUE ~ NA_real_),
+           max_dose = max_na(which_dose)) %>%
+    drop_na(max_dose) %>%
+    mutate(# Derive vaccination year based on month
+           dose1_yearfix = if_else(max_dose >= 1, get_year(dose1_month), NA_real_),
+           dose2_yearfix = if_else(max_dose >= 2, get_year(dose2_month), NA_real_),
+           # If only the day is missing, replace with 15th of the month
+           dose1_day = if_else(!is.na(dose1_month) & !is.na(dose1_yearfix) & is.na(dose1_day), "15", dose1_day),
+           dose2_day = if_else(!is.na(dose2_month) & !is.na(dose2_yearfix) & is.na(dose2_day), "15", dose2_day),
+           # Derive dates
+           dd1 = ymd(paste(dose1_yearfix, dose1_month, dose1_day), quiet = TRUE),
+           dd2 = ymd(paste(dose2_yearfix, dose2_month, dose2_day), quiet = TRUE)) %>%
+    summarise(across(c(dd1, dd2), ~ first(na.omit(.x)))) %>% 
     select(pid, dd1, dd2)
-
 
 # At each survey period, had the participant and their first/second vaccine? --
 
