@@ -16,13 +16,12 @@ ox <- read_csv(here("data", "raw", "contextual", "oxcgrt",
 uk_lockdown <- ox %>%
     filter(jurisdiction == "NAT_TOTAL") %>%
     mutate(date = ymd(date),
-           in_lockdown = (c2_workplace_closing == 3) &              # [1]
-                         (c6_stay_at_home_requirements == 2))       # [2]
+           in_lockdown = (c6_stay_at_home_requirements %in% c(1, 2, 3)))  # [A]
 
-    # [1]: require closing (or work from home) for all-but-essential workplaces
-    #      (eg grocery stores, doctors)
-    # [2]: require not leaving house with exceptions for daily exercise,
-    #      grocery shopping, and 'essential' trips
+    # [A] 
+    # 1 = recommend not leaving house
+    # 2 = require not leaving house with exceptions for daily exercise, grocery shopping, and 'essential' trips
+    # 3 = require not leaving house with minimal exceptions (eg allowed to leave once a week, or only one person can leave at a time, etc)
 
 save(uk_lockdown, file = here("data", "clean", "contextual",
                               "uk_lockdown.Rdata"))
