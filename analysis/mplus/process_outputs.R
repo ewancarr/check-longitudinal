@@ -39,15 +39,26 @@ extract_plot_data <- function(file, dap = times) {
 
 get_filename <- function(path) { path_ext_remove(path_file(path)) }
 
-
 ###############################################################################
 ####                                                                      #####
 ####                           Load output files                          #####
 ####                                                                      #####
 ###############################################################################
 
-current <- "2021-05-24 Updated GMM and R3STEP models"
+current <- "2021-06-03 New R3STEP variables, 4 class models"
 p <- here("analysis", "mplus", "saved_fits", current)
+
+# Check: are any output files missing? ----------------------------------------
+dir_ls(p, recurse = TRUE) %>%
+    as_tibble() %>%
+    mutate(fn = get_filename(value),
+           ext = path_ext(value),
+           parent = path_dir(path_rel(value, p)),
+           present = TRUE) %>%
+    filter(ext %in% c("inp", "out")) %>%
+    select(parent, fn, ext, present) %>%
+    spread(ext, present) %>%
+    print(n = 100)
 
 # Load source data ------------------------------------------------------------
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
@@ -77,9 +88,14 @@ names(fits) <- path_rel(path_ext_remove(names(fits)),
 ####                                                                      #####
 ###############################################################################
 
+pick <- function(fits, term) {
+    res <- fits[str_detect(names(fits), term)]
+    names(res) <- str_replace(names(res), paste0(term, "/"), "")
+    return(res)
+}
+
 get_id <- function(d) { separate(d, model_id, c("model", "y", "nclasses", "form")) }
-gmm <- fits[str_detect(names(fits), "^gmm")]
-names(gmm) <- str_replace(names(gmm), "^gmm/", "")
+gmm <- pick(fits, "^gmm")
 
 # Extract fit statistics ------------------------------------------------------
 fit_stat <- map_dfr(gmm, "summaries", .id = "model_id") %>%
@@ -129,8 +145,7 @@ class_ids <- map_dfr(gmm, "savedata", .id = "model_id") %>%
 ###############################################################################
 
 get_id <- function(d) { separate(d, model_id, c("y", "x")) }
-r3step <- fits[str_detect(names(fits), "^r3step")]
-names(r3step) <- str_replace(names(r3step), "^r3step/", "")
+r3step <- pick(fits, "^r3step")
 
 # Check: did any models fail to run?
 map_dfr(r3step, ~ length(.x$errors)) %>%
@@ -139,13 +154,31 @@ map_dfr(r3step, ~ length(.x$errors)) %>%
 
 # Extract odds ratios
 odds_ratios <- map(r3step, "r3step") %>%
-    discard(~ length(.x) == 1) %>%
     map_dfr(.id = "model_id", ~ .x) %>%
-    mutate(on = str_squish(on),
-           reference = as.numeric(reference),
-           cell = str_glue("{sprintf('%.3f', or)} [p={sprintf('%.3f', pval)}]"),
-           adj = if_else(str_detect(model_id, "_adj$"), "Adj.", "Unadj."))
-    
+    mutate(cell = str_glue("{est} [{low025}, {up025}]"),
+           adj = if_else(str_detect(model_id, "_adj$"), "Adj.", "Unadj."),
+           model_id = str_replace(model_id, "_adj$", "")) %>%
+    select(model_id, adj, ref, class, param, cell) %>%
+    pivot_wider(names_from = c(adj, class),
+                values_from = cell,
+                names_glue = "{adj}_{class}") %>%
+    arrange(model_id, ref, param)
+
+###############################################################################
+####                                                                      #####
+####                              TVC models                              #####
+####                                                                      #####
+###############################################################################
+
+tvcov <- pick(fits, "^tvcov")
+names(tvcov[[1]]$parameters$ci.stdy.standardized)
+
+tvcov_coef <- map_dfr(tvcov, ~ .x$parameters$ci.std.standardized %>%
+    filter(str_detect(paramHeader, "^[GADPHQ0-9]+\\.ON")) %>%
+    select(paramHeader, param, low2.5, est, up2.5, LatentClass),
+    .id = "model") %>%
+    separate(model, c("type", "y", "nclasses", "tvcov", "constrain"))
+
 ###############################################################################
 ####                                                                      #####
 ####                                 SAVE                                 #####
@@ -158,4 +191,5 @@ save(fit_stat,
      class_ids,
      r3step,
      odds_ratios,
+     tvcov, tvcov_coef,
      file = here("analysis", "outputs", "class_summaries.Rdata"))
