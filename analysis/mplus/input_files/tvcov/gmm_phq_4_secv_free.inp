@@ -1,7 +1,7 @@
 TITLE: GMM model for PHQ, 4 classes
 DATA: FILE = ../../data/check_wide.dat;
 VARIABLE: 
-NAMES = pid rw fstv00 fstv03 fstv05
+NAMES = pid w_bl fstv00 fstv03 fstv05
 fstv07 fstv09 fstv11 fstv13 fstv15
 fstv17 fstv19 fstv21 fstv23 fstv25
 fstv27 fstv29 fstv31 fstv33 fstv35
@@ -75,11 +75,11 @@ secv41 secv43 secv45 secv47 secv49
 secv51 secv53;
 CLASSES = C(4);
 IDVARIABLE = pid;
-WEIGHT = rw;
+WEIGHT = w_bl;
 
 MISSING=.;
 ANALYSIS: 
-PROCESSORS = 4;
+PROCESSORS = 24;
 TYPE = MIXTURE;  
 MODEL:
 %OVERALL%
