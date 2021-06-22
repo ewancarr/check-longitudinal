@@ -16,3 +16,7 @@ analysis/growth_curves_old/**
 analysis/mplus/scratch/*
 reference/*.~lock*
 renv
+
+reference/
+
+analysis/outputs/

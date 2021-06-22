@@ -51,7 +51,7 @@ wide_data <- sel %>%
     select(# ID variables
            pid, dap,
            # Weights
-           rw,
+           w_bl,
            # Outcomes
            gad = gad_total,
            phq = phq_total,
@@ -67,7 +67,7 @@ wide_data <- sel %>%
            stpla = s_plans
            ) %>%
     ungroup() %>%
-    gather(k, v, -pid, -dap, -rw) %>%
+    gather(k, v, -pid, -dap, -w_bl) %>%
     mutate(k = paste0(k, sprintf("%02d", dap))) %>%
     select(-dap) %>%
     spread(k, v)
@@ -275,7 +275,7 @@ make_input <- function(dpath,
     USEVARIABLES = {uv};
     CLASSES = C({classes});
     IDVARIABLE = pid;
-    WEIGHT = rw;
+    WEIGHT = w_bl;
     {r3step}
     MISSING=.;
     ANALYSIS: {pr}
@@ -299,7 +299,7 @@ comb1 <- list(dpath           = "../../data/check_wide.dat",
               names_statement = input_file[4],
               classes         = 2:7,
               starts          = TRUE,
-              proc            = 4,
+              proc            = 24,
               boot            = FALSE,
               model           = "gmm") %>%
     cross()
@@ -421,6 +421,15 @@ pick <- comb1 %>%
 names(pick) <- c("gad", "phq")
 
 # Add TVCs --------------------------------------------------------------------
+# Remove TVCs with zero (or close to zero) variance
+
+wide_data %>%
+    select(starts_with("stpla")) %>%
+    mutate(across(everything(), na_if, 777)) %>%
+    summarise(across(everything(), var, na.rm = TRUE)) %>%
+
+
+
 non_zero <- function(i) {
     wide_data %>%
         select(starts_with(i)) %>%
@@ -430,6 +439,7 @@ non_zero <- function(i) {
         filter(v) %>%
         pluck("k")
 }
+
 tvcs <- map(stubs, non_zero)
 tvcs <- cross(list(tvc = tvcs, constrain = c(TRUE, FALSE))) %>%
     map(~ list(use = TRUE, vars = .x$tvc, constrain = .x$constrain))
