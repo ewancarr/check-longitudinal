@@ -2,6 +2,7 @@
 # Author:       Ewan Carr
 # Started:      2021-06-21
 
+renv::load()
 library(tidyverse)
 library(here)
 library(naniar)
@@ -59,4 +60,4 @@ samples$s3 <- unique(analytical$pid)
 
 # Save
 map(samples, length)
-save(samples, here("data", "clean", "samples.Rdata")
+save(samples, file = here("data", "clean", "samples.Rdata"))

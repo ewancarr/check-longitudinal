@@ -16,7 +16,7 @@ ox <- read_csv(here("data", "raw", "contextual", "oxcgrt",
 uk_lockdown <- ox %>%
     filter(jurisdiction == "NAT_TOTAL") %>%
     mutate(date = ymd(date),
-           in_lockdown = (c6_stay_at_home_requirements %in% c(1, 2, 3)))  # [A]
+           in_lockdown = (c6_stay_at_home_requirements %in% c(2, 3)))  # [A]
 
     # [A] 
     # 1 = recommend not leaving house

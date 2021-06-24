@@ -160,8 +160,8 @@ bl <- bl %>%
            renting = case_when(str_detect(accom, "[Rr]ented") ~ TRUE,
                                accom == "Missing" ~ NA,
                                TRUE ~ FALSE),
-           accom = recode_accom(replace_na(accom, "Missing")),
-           relat = recode_relat(replace_na(relat, "Missing")),
+           accom = recode_accom(accom),
+           relat = recode_relat(relat),
            prev_depress = str_detect(diagnoses, "Depression"),
            prev_gad = str_detect(bl$diagnoses, "anxiety|Panic attack|PTSD"))
 
