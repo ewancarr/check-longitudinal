@@ -366,6 +366,13 @@
       "Repository": "RSPM",
       "Hash": "81c3244cab67468aac4c60550832655d"
     },
+    "foreach": {
+      "Package": "foreach",
+      "Version": "1.5.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "e32cfc0973caba11b65b1fa691b4d8c9"
+    },
     "foreign": {
       "Package": "foreign",
       "Version": "0.8-81",
@@ -410,17 +417,17 @@
     },
     "ggplot2": {
       "Package": "ggplot2",
-      "Version": "3.3.3",
+      "Version": "3.3.4",
       "Source": "Repository",
       "Repository": "RSPM",
-      "Hash": "3eb6477d01eb5bbdc03f7d5f70f2733e"
+      "Hash": "53ed0e82132d7f6ade8428f494d175e1"
     },
-    "ggthemes": {
-      "Package": "ggthemes",
-      "Version": "4.2.4",
+    "glmnet": {
+      "Package": "glmnet",
+      "Version": "4.1-1",
       "Source": "Repository",
       "Repository": "RSPM",
-      "Hash": "617fb2c300f68e8b1ba21043fba88fd7"
+      "Hash": "18482cb4790abf3ed27cafa2381d6175"
     },
     "globals": {
       "Package": "globals",
@@ -533,6 +540,13 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "b2008df40fb297e3fef135c7e8eeec1a"
+    },
+    "iterators": {
+      "Package": "iterators",
+      "Version": "1.0.13",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "64778782a89480e9a644f69aad9a2877"
     },
     "janitor": {
       "Package": "janitor",
@@ -960,6 +974,13 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "3838071b66e0c566d55cc26bd6e27bf4"
+    },
+    "shape": {
+      "Package": "shape",
+      "Version": "1.4.6",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "9067f962730f58b14d8ae54ca885509f"
     },
     "snakecase": {
       "Package": "snakecase",
