@@ -12,6 +12,7 @@ library(fastDummies)
 library(naniar)
 library(forcats)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
+load(here("data", "clean", "samples.Rdata"), verbose = TRUE)
 
 # This script prepares Mplus input files for the longitudinal paper. There are
 # three types of models:
@@ -37,6 +38,11 @@ two_monthly <- FALSE
 if (two_monthly) {
     sel <- filter(sel, two_month)
 }
+
+# Select analytical sample ----------------------------------------------------
+
+sel <- filter(sel, pid %in% samples$s3)
+bl <- filter(bl, pid %in% samples$s3)
 
 # Reshape outcomes and time-varying covariates to WIDE format -----------------
 
@@ -75,8 +81,7 @@ wide_data <- sel %>%
 # Recode some baseline variables ----------------------------------------------
 
 bl <- bl %>%
-    mutate(across(c(relat, role_cat), ~ fct_drop(na_if(.x, "Missing"))),
-           rc = fct_recode(role_cat,
+    mutate(rc = fct_recode(role_cat,
                            acad = "Academic, specialist and management",
                            rsch = "Research, clerical and technical",
                            teac = "Teaching, facilities and clinical",
@@ -86,8 +91,7 @@ bl <- bl %>%
                               part = "Civil partnership, married, cohabiting, non-cohabiting",
                               divo = "Divorced, separated, widowed"))
 
-
-# Add baseline variables ------------------------------------------------------
+# Combine repeated measures and baseline variables ----------------------------
 
 baseline <- bl %>%
     select(pid,
@@ -112,10 +116,17 @@ baseline <- bl %>%
     mutate(eth = tolower(as.character(ethnic_f)),
            othercare = othercare == "Yes",
            anychild = parse_number(as.character(nc)) > 0) %>%
-    drop_na() %>%
     dummy_cols(select_columns = c("relat", "rc", "eth", "nc")) %>%
     select(-eth, -ethnic_f, -nc, -relat, -rc) 
 
+# Check there are no missing values at baseline (there shouldn't be, because
+# we've already selected the sample with complete data).
+baseline %>%
+    map(naniar::n_miss) %>%
+    keep(~ .x > 0) %>%
+    length()
+
+# Merge baseline with repeated measures
 wide_data <- inner_join(wide_data, baseline, by = "pid")
 
 # Remove characters Mplus doesn't like
@@ -297,7 +308,7 @@ comb1 <- list(dpath           = "../../data/check_wide.dat",
               y               = c("gad", "phq"),
               form            = "cubic",
               names_statement = input_file[4],
-              classes         = 2:7,
+              classes         = 3:6,
               starts          = TRUE,
               proc            = 24,
               boot            = FALSE,
@@ -397,8 +408,8 @@ write_models(inputs2, target)
 ####                                                                      #####
 ###############################################################################
 
-# Check: how many of the TVCs have zero variance?
-rep <- sel %>% 
+# Check: how many of the TVCs have zero variance at each period?
+repmea <- sel %>% 
     ungroup() %>%
     select(dap, pid,
            phq_total, gad_total,
@@ -408,8 +419,9 @@ rep <- sel %>%
            starts_with("s_")) %>%
     group_by(dap) 
 
-rep %>%
-    summarise(across(everything(), ~ var(.x, na.rm = TRUE) > 0)) %>%
+repmea %>%
+    summarise(across(everything(),
+                     ~ if_else(var(.x, na.rm = TRUE) == 0, "Yes", "_"))) %>%
     print(n = 50)
 
 # Pick base models ------------------------------------------------------------
@@ -421,15 +433,7 @@ pick <- comb1 %>%
 names(pick) <- c("gad", "phq")
 
 # Add TVCs --------------------------------------------------------------------
-# Remove TVCs with zero (or close to zero) variance
-
-wide_data %>%
-    select(starts_with("stpla")) %>%
-    mutate(across(everything(), na_if, 777)) %>%
-    summarise(across(everything(), var, na.rm = TRUE)) %>%
-
-
-
+# Remove TVCs with zero variance
 non_zero <- function(i) {
     wide_data %>%
         select(starts_with(i)) %>%
@@ -441,6 +445,8 @@ non_zero <- function(i) {
 }
 
 tvcs <- map(stubs, non_zero)
+
+# Create list of input files
 tvcs <- cross(list(tvc = tvcs, constrain = c(TRUE, FALSE))) %>%
     map(~ list(use = TRUE, vars = .x$tvc, constrain = .x$constrain))
 comb3 <- cross(list(mod = pick, tvc = tvcs))
@@ -463,7 +469,11 @@ names(inputs3) <- map_chr(comb3,
 target <- here("analysis", "mplus", "input_files", "tvcov")
 file_delete(dir_ls(target))
 
-# Write input files
+# Write input files -----------------------------------------------------------
+
+# Remove 'constrained' files, for now.
+inputs3 <- inputs3[str_detect(names(inputs3), "free$")]
+
 write_models(inputs3, target)
 
 ###############################################################################
