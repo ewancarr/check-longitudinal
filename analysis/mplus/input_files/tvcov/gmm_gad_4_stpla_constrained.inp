@@ -63,9 +63,9 @@ is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
 livalon shonly chron renting anychild
 relat_sing relat_part relat_divo rc_acad
-rc_rsch rc_teac rc_pgrs eth_asian
-eth_black eth_mixed eth_other eth_white
-nc_0 nc_1 nc_2 nc_3; 
+rc_rsch rc_teac rc_pgrs rc_Missing
+eth_asian eth_black eth_mixed eth_other
+eth_white nc_0 nc_1 nc_2 nc_3; 
 USEVARIABLES = gad00-gad53
 stpla00 stpla03 stpla05 stpla07 stpla09
 stpla11 stpla13 stpla15 stpla17 stpla19

@@ -63,16 +63,14 @@ is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
 livalon shonly chron renting anychild
 relat_sing relat_part relat_divo rc_acad
-rc_rsch rc_teac rc_pgrs eth_asian
-eth_black eth_mixed eth_other eth_white
-nc_0 nc_1 nc_2 nc_3; 
+rc_rsch rc_teac rc_pgrs rc_Missing
+eth_asian eth_black eth_mixed eth_other
+eth_white nc_0 nc_1 nc_2 nc_3; 
 USEVARIABLES = gad00-gad53
-secv00 secv03 secv05 secv07 secv09
-secv11 secv13 secv15 secv17 secv19
-secv21 secv23 secv25 secv27 secv29
-secv31 secv33 secv35 secv37 secv39
-secv41 secv43 secv45 secv47 secv49
-secv51 secv53;
+secv21 secv25 secv27 secv29 secv31
+secv33 secv35 secv37 secv39 secv41
+secv43 secv45 secv47 secv49 secv51
+secv53;
 CLASSES = C(4);
 IDVARIABLE = pid;
 WEIGHT = w_bl;
@@ -91,18 +89,7 @@ gad33@.33 gad35@.35 gad37@.37 gad39@.39
 gad41@.41 gad43@.43 gad45@.45 gad47@.47
 gad49@.49 gad51@.51 gad53@.53;
 cu@0;
-gad00 ON secv00;
-gad03 ON secv03;
-gad05 ON secv05;
-gad07 ON secv07;
-gad09 ON secv09;
-gad11 ON secv11;
-gad13 ON secv13;
-gad15 ON secv15;
-gad17 ON secv17;
-gad19 ON secv19;
 gad21 ON secv21;
-gad23 ON secv23;
 gad25 ON secv25;
 gad27 ON secv27;
 gad29 ON secv29;

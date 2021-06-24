@@ -63,9 +63,9 @@ is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
 livalon shonly chron renting anychild
 relat_sing relat_part relat_divo rc_acad
-rc_rsch rc_teac rc_pgrs eth_asian
-eth_black eth_mixed eth_other eth_white
-nc_0 nc_1 nc_2 nc_3; 
+rc_rsch rc_teac rc_pgrs rc_Missing
+eth_asian eth_black eth_mixed eth_other
+eth_white nc_0 nc_1 nc_2 nc_3; 
 USEVARIABLES = phq00-phq53
 stpla00 stpla03 stpla05 stpla07 stpla09
 stpla11 stpla13 stpla15 stpla17 stpla19
@@ -76,6 +76,7 @@ stpla51 stpla53;
 CLASSES = C(4);
 IDVARIABLE = pid;
 WEIGHT = w_bl;
+
 MISSING=.;
 ANALYSIS: 
 PROCESSORS = 24;
@@ -117,4 +118,8 @@ phq47 ON stpla47 (1);
 phq49 ON stpla49 (1);
 phq51 ON stpla51 (1);
 phq53 ON stpla53 (1);
-OUTPUT:STANDARDIZED CINTERVAL;
+OUTPUT:
+SAMPSTAT STANDARDIZED CINTERVAL  ;
+PLOT:
+TYPE IS PLOT1 PLOT2 PLOT3;
+SERIES IS phq00-phq53 (*);

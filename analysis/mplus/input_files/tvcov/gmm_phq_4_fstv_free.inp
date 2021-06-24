@@ -63,16 +63,13 @@ is_staff age female child6 highrisk
 othercare shield_isol kw pranx prdep
 livalon shonly chron renting anychild
 relat_sing relat_part relat_divo rc_acad
-rc_rsch rc_teac rc_pgrs eth_asian
-eth_black eth_mixed eth_other eth_white
-nc_0 nc_1 nc_2 nc_3; 
+rc_rsch rc_teac rc_pgrs rc_Missing
+eth_asian eth_black eth_mixed eth_other
+eth_white nc_0 nc_1 nc_2 nc_3; 
 USEVARIABLES = phq00-phq53
-fstv00 fstv03 fstv05 fstv07 fstv09
-fstv11 fstv13 fstv15 fstv17 fstv19
-fstv21 fstv23 fstv25 fstv27 fstv29
-fstv31 fstv33 fstv35 fstv37 fstv39
-fstv41 fstv43 fstv45 fstv47 fstv49
-fstv51 fstv53;
+fstv27 fstv29 fstv31 fstv33 fstv35
+fstv37 fstv39 fstv41 fstv43 fstv45
+fstv47 fstv49 fstv51 fstv53;
 CLASSES = C(4);
 IDVARIABLE = pid;
 WEIGHT = w_bl;
@@ -91,19 +88,6 @@ phq33@.33 phq35@.35 phq37@.37 phq39@.39
 phq41@.41 phq43@.43 phq45@.45 phq47@.47
 phq49@.49 phq51@.51 phq53@.53;
 cu@0;
-phq00 ON fstv00;
-phq03 ON fstv03;
-phq05 ON fstv05;
-phq07 ON fstv07;
-phq09 ON fstv09;
-phq11 ON fstv11;
-phq13 ON fstv13;
-phq15 ON fstv15;
-phq17 ON fstv17;
-phq19 ON fstv19;
-phq21 ON fstv21;
-phq23 ON fstv23;
-phq25 ON fstv25;
 phq27 ON fstv27;
 phq29 ON fstv29;
 phq31 ON fstv31;
