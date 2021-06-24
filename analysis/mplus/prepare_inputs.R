@@ -310,7 +310,7 @@ comb1 <- list(dpath           = "../../data/check_wide.dat",
               names_statement = input_file[4],
               classes         = 3:6,
               starts          = TRUE,
-              proc            = 24,
+              proc            = 8,
               boot            = FALSE,
               model           = "gmm") %>%
     cross()

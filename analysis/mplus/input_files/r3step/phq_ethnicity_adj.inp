@@ -75,7 +75,7 @@ eth_mixed (R3STEP) eth_asian (R3STEP)
 eth_black (R3STEP) eth_other (R3STEP);
 MISSING=.;
 ANALYSIS: 
-PROCESSORS = 24;
+PROCESSORS = 8;
 TYPE = MIXTURE;  
 MODEL:
 %OVERALL%
