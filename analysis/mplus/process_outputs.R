@@ -67,7 +67,7 @@ load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 fits <- read_dir(p)
 
 # Load GH5 output -------------------------------------------------------------
-inp <- readLines(paste0(p, "/gmm/gmm_gad_2_cubic.inp"))
+inp <- readLines(paste0(p, "/gmm/gmm_gad_4_cubic.inp"))
 start <- grep("^NAMES =.*", inp)
 end <- grep("^USEVARIABLES =.*", inp) - 1
 times <- parse_number(grep("^gad[0-9]+", str_split(paste(inp[start:end], collapse = " "), " ")[[1]], value = TRUE))
@@ -101,7 +101,7 @@ gmm <- pick(fits, "^gmm")
 fit_stat <- map_dfr(gmm, "summaries", .id = "model_id") %>%
     janitor::clean_names() %>%
     as_tibble() %>%
-    get_id()
+    get_id() 
 
 # Extract class sizes ---------------------------------------------------------
 class_size <- gmm %>% 

@@ -37,7 +37,7 @@ analytical <- analytical %>%
            n_gad >= 2)
 samples$s2 <- unique(analytical$pid)
 
-# Sample 3: Has information on aseline covariates -----------------------------
+# Sample 3: Has information on baseline covariates ----------------------------
 analytical <- analytical %>%
     drop_na(is_staff,
             age,
