@@ -45,7 +45,7 @@ get_filename <- function(path) { path_ext_remove(path_file(path)) }
 ####                                                                      #####
 ###############################################################################
 
-current <- "2021-06-03 New R3STEP variables, 4 class models"
+current <- "2021-06-25 Minor updates, selected samples"
 p <- here("analysis", "mplus", "saved_fits", current)
 
 # Check: are any output files missing? ----------------------------------------
@@ -82,6 +82,26 @@ fits <- map2(fits, names(fits),
 names(fits) <- path_rel(path_ext_remove(names(fits)),
                         here("analysis", "mplus", "saved_fits", current))
 
+
+# Function to ensure class numbering is consistent across outcomes ------------
+
+# NOTE: This may need to be updated each time the GMM models are re-run.
+
+switcher <- function(outcome, lc) {
+    lc <- as.numeric(lc)
+    case_when(outcome == "gad" ~ lc,
+              outcome == "phq" & lc == 4 ~ 1,
+              outcome == "phq" & lc == 2 ~ 2,
+              outcome == "phq" & lc == 1 ~ 3,
+              outcome == "phq" & lc == 3 ~ 4)
+}
+
+make_classes_consistent <- function(dat) {
+    mutate(dat,
+           class_orig = class,
+           class = switcher(y, class))
+}
+
 ###############################################################################
 ####                                                                      #####
 ####                              GMM models                              #####
@@ -107,7 +127,8 @@ fit_stat <- map_dfr(gmm, "summaries", .id = "model_id") %>%
 class_size <- gmm %>% 
     map_dfr(~ .x$class_counts$mostLikely, .id = "model_id") %>%
     arrange(model_id, class) %>%
-    get_id() 
+    get_id() %>%
+    make_classes_consistent()
 
 # Extract class summaries -----------------------------------------------------
 class_summaries <- gmm %>%
@@ -121,7 +142,8 @@ class_summaries <- gmm %>%
                             str_detect(k, "^obs") ~ "obs")) %>%
     select(nclasses, class, y, model, dap, v, type) %>%
     spread(type, v) %>%
-    arrange(nclasses, class, y, model, dap)
+    arrange(nclasses, class, y, model, dap) %>%
+    make_classes_consistent()
 
 # Get date corresponding to 'dap' ---------------------------------------------
 date_lookup <- sel %>%
@@ -135,8 +157,10 @@ class_summaries <- class_summaries %>%
 class_ids <- map_dfr(gmm, "savedata", .id = "model_id") %>%
     as_tibble() %>%
     clean_names() %>%
-    select(model_id, pid, c) %>%
-    separate(model_id, c("model", "y", "nclasses", "form"))
+    select(model_id, pid, class = c) %>%
+    separate(model_id, c("model", "y", "nclasses", "form")) %>%
+    make_classes_consistent()
+
 
 ###############################################################################
 ####                                                                      #####
@@ -156,13 +180,13 @@ map_dfr(r3step, ~ length(.x$errors)) %>%
 odds_ratios <- map(r3step, "r3step") %>%
     map_dfr(.id = "model_id", ~ .x) %>%
     mutate(cell = str_glue("{est} [{low025}, {up025}]"),
-           adj = if_else(str_detect(model_id, "_adj$"), "Adj.", "Unadj."),
-           model_id = str_replace(model_id, "_adj$", "")) %>%
-    select(model_id, adj, ref, class, param, cell) %>%
-    pivot_wider(names_from = c(adj, class),
-                values_from = cell,
-                names_glue = "{adj}_{class}") %>%
-    arrange(model_id, ref, param)
+           adj = if_else(str_detect(model_id, "_adj$"), "adj", "unadj"),
+           model_id = str_replace(model_id, "_adj$", ""),
+           across(c(ref, class), parse_number),
+           y = str_match(model_id, "^([a-z]+)[_a-z]+$")[, 2]) %>%
+    select(y, model_id, adj, ref, class, param, cell, est, low025, up025) %>%
+    mutate(class = switcher(y, class),
+           ref = switcher(y, ref))
 
 ###############################################################################
 ####                                                                      #####
@@ -171,13 +195,23 @@ odds_ratios <- map(r3step, "r3step") %>%
 ###############################################################################
 
 tvcov <- pick(fits, "^tvcov")
-names(tvcov[[1]]$parameters$ci.stdy.standardized)
 
-tvcov_coef <- map_dfr(tvcov, ~ .x$parameters$ci.std.standardized %>%
-    filter(str_detect(paramHeader, "^[GADPHQ0-9]+\\.ON")) %>%
-    select(paramHeader, param, low2.5, est, up2.5, LatentClass),
-    .id = "model") %>%
-    separate(model, c("type", "y", "nclasses", "tvcov", "constrain"))
+process_tvc <- function(tvc) {
+    samp <- tvc$summaries$Observations
+    tvc$parameters$ci.std.standardized %>%
+                      filter(str_detect(paramHeader, "^[GADPHQ0-9]+\\.ON")) %>%
+    clean_names() %>%
+    mutate(dap = parse_number(param_header),
+           y = tolower(str_extract(param_header, "^GAD|^PHQ")),
+           tvc = tolower(str_replace_all(param, "[0-9]", "")),
+           n_classes = max(latent_class),
+           n_sample = samp) %>%
+    select(y, tvc, dap, low2_5, est, up2_5, class = latent_class, n_sample) %>%
+    make_classes_consistent() %>%
+    arrange(class, dap)
+}
+
+tvcov_coef <- map_dfr(tvcov, process_tvc)
 
 ###############################################################################
 ####                                                                      #####
