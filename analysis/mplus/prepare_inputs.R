@@ -89,14 +89,15 @@ bl <- bl %>%
            relat = fct_recode(relat,
                               sing = "Single",
                               part = "Civil partnership, married, cohabiting, non-cohabiting",
-                              divo = "Divorced, separated, widowed"))
+                              divo = "Divorced, separated, widowed"),
+           age10 = age / 10)
 
 # Combine repeated measures and baseline variables ----------------------------
 
 baseline <- bl %>%
     select(pid,
            is_staff,
-           age,
+           age, age10,
            female,
            ethnic_f,
            child6,
@@ -379,12 +380,12 @@ unadj <- list(role        = "is_staff",
               rent        = "renting",
               pranx       = "pranx",
               prdep       = "prdep")
-adj <- map(unadj, ~ c("age", "female", .x)) 
+adj <- map(unadj, ~ c("age10", "female", .x)) 
 names(adj) <- paste0(names(adj), "_adj")
 opts <- vec_c(unadj, adj)
-opts$age <- "age"
+opts$age <- "age10"
 opts$sex <- "female"
-opts$agesex <- c("age", "female")
+opts$agesex <- c("age10", "female")
 
 # Create combinations of models/covariates ------------------------------------
 comb2 <- cross(list(mod = pick, r3step = opts))
@@ -433,16 +434,20 @@ pick <- comb1 %>%
 names(pick) <- c("gad", "phq")
 
 # Add TVCs --------------------------------------------------------------------
-# Remove TVCs with zero variance
+# Remove TVCs with low variance
 non_zero <- function(i) {
     wide_data %>%
         select(starts_with(i)) %>%
         mutate(across(everything(), na_if, 777)) %>%
-        summarise(across(everything(), ~ var(.x, na.rm = TRUE) > 0)) %>%
+        summarise(across(everything(), ~ var(.x, na.rm = TRUE) > 0.01)) %>%
         gather(k, v) %>%
         filter(v) %>%
         pluck("k")
 }
+# NOTE: the threshold variance of "0.01" above is somewhat arbitrary. We're 
+#       aiming to remove TVCs that have very few 1s -- e.g. at for prob07, 
+#       just 15 people say yes, vs. 1902 saying no. This causes problems in the
+#       TVC models.
 
 tvcs <- map(stubs, non_zero)
 
