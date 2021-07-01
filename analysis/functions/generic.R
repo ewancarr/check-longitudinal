@@ -1,7 +1,6 @@
 recode_accom <- function(x) {
     factor(case_when(x == "Buying with the help of a mortgage or loan"                          ~ "Privately owned (self)",
                      x == "Live rent-free (including rent-free in relative’s/friends property)" ~ "Other",
-                     x == "Missing"                                                             ~ "Missing",
                      x == "Other"                                                               ~ "Other",
                      x == "Privately owned (family)"                                            ~ "Other",
                      x == "Privately owned (self)"                                              ~ "Privately owned (self)",
@@ -12,8 +11,7 @@ recode_accom <- function(x) {
            levels = c("Privately owned (self)",
                       "Rent (social)",
                       "Rent (private, voluntary)",
-                      "Other",
-                      "Missing"))
+                      "Other"))
 }
 
 recode_relat <- function(x) {
@@ -23,14 +21,12 @@ recode_relat <- function(x) {
                      x == "In a relationship and co-habiting"     ~ "Civil partnership, married, cohabiting, non-cohabiting",
                      x == "In a relationship but not co-habiting" ~ "Civil partnership, married, cohabiting, non-cohabiting",
                      x == "Married"                               ~ "Civil partnership, married, cohabiting, non-cohabiting",
-                     x == "Missing"                               ~ "Missing",
                      x == "Separated"                             ~ "Divorced, separated, widowed",
                      x == "Single"                                ~ "Single",
                      x == "Widowed"                               ~ "Divorced, separated, widowed"),
            levels = c("Single",
                       "Civil partnership, married, cohabiting, non-cohabiting",
-                      "Divorced, separated, widowed",
-                      "Missing"))
+                      "Divorced, separated, widowed"))
 }
 
 swap_names <- function(d) {

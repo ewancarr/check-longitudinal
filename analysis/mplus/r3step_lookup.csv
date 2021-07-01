@@ -1,0 +1,27 @@
+param,rank,label,group
+age10,1,Age,Age and gender
+female,2,Female gender,Age and gender
+eth_white,3,White,Ethnicity
+eth_blac,4,Black,Ethnicity
+eth_asia,5,Asian,Ethnicity
+eth_mixe,6,Mixed,Ethnicity
+eth_othe,7,Other,Ethnicity
+relat_part,8,Partner (Ref.),Relationship status
+relat_si,9,Single,Relationship status
+relat_di,10,Divorced,Relationship status
+chron,10,Yes,Reports chronic condition
+livalon,11,Living alone,Living arrangements
+renting,12,Renting,Living arrangements
+rc_acad,13,"Academic, specialist and manag. (Ref.)",Role
+rc_rsch,14,"Research, clerical and technical",Role
+rc_teac,15,"Teaching, facilities and clinical",Role
+rc_pgrs,16,Postgraduate student,Role
+anychild,17,Has children,Caring
+child6,18,Has children aged 6 or younger,Caring
+othercar,19,Other caring role,Caring
+kw,20,Yes,Key worker
+shonly,21,Yes,Shielding
+pranx,22,Anxiety,Prior mental health
+prdep,23,Depression,Prior mental health
+is_staff,,,
+shield_i,,,
