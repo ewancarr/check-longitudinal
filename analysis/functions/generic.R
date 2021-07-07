@@ -29,6 +29,21 @@ recode_relat <- function(x) {
                       "Divorced, separated, widowed"))
 }
 
+recode_ethnicity <- function(dat) {
+    dat %>%
+    mutate(ethnic_group = case_when(str_detect(ethnicity, "Mixed") ~ "Mixed",
+                                    str_detect(ethnicity, "White") ~ "White",
+                                    str_detect(ethnicity, "Black") ~ "Black",
+                                    str_detect(ethnicity, "Asian") ~ "Asian",
+                                    str_detect(ethnicity, "Other") ~ "Other",
+                                    TRUE ~ NA_character_),
+           ethnic_f = factor(ethnic_group,
+                              levels = c("White", "Black", "Asian",
+                                         "Mixed", "Other")))
+}
+
+
+
 swap_names <- function(d) {
     rename(d,
            login_id = `Login ID`,
@@ -293,3 +308,5 @@ swap_names <- function(d) {
            testing5 = `Testing_5`,
            final_1 = `Final_1`) 
 }
+
+
