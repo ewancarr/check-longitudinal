@@ -274,21 +274,92 @@ date_lookup <- sel %>%
     distinct(dap, midpoint) %>%
     drop_na()
 
-tvcov_coef %>%
-    filter(class == 1,
-           low2_5 > -5,
-           up2_5 < 5) %>%
+label_lookup <- tribble(
+~tvc, ~tvc_lab,
+"stmat",  "Material\nstressors",
+"stmed",  "Medical",
+"stper", "Personal",
+"stpla", "Plans",
+)
+
+date_breaks <- ymd(c("2020-04-15",
+                     "2020-08-15",
+                     "2020-12-15",
+                     "2021-04-15"))
+
+
+plot_data <- tvcov_coef %>%
+    filter(orig_class == 1,
+           str_starts(tvc, "st")) %>%
     left_join(date_lookup, by = "dap") %>%
+    left_join(label_lookup) %>%
+    mutate(midpoint = as.Date(midpoint),
+           outcome = if_else(y == "gad",
+                             "Anxiety (GAD-7)",
+                             "Depression (PHQ-9)"))
+
+extra <- uk_lockdown %>%
+    filter(date >= min(plot_data$midpoint),
+           date <= max(plot_data$midpoint)) %>%
+    mutate(height = 6,
+           y = min(plot_data$est))
+
+p_tvc <- plot_data %>%
     ggplot(aes(x = midpoint,
                y = est,
+               color = outcome,
                ymin = low2_5,
                ymax = up2_5)) +
-    geom_pointrange() +
+    geom_tile(data = extra,
+              aes(y = y,
+                  height = height,
+                  x = date,
+                  fill   = in_lockdown),
+              alpha = 0.1,
+              inherit.aes = FALSE) +
+    geom_linerange(size = 0.4) +
+    geom_point(size = 2.5) +
     geom_hline(yintercept = 0,
                colour = "red",
                alpha = 0.2) +
-    facet_grid(rows = vars(tvc),
-               cols = vars(y),
-               scale = "free_y")
+    facet_grid(rows = vars(tvc_lab),
+               cols = vars(outcome)) +
+    theme_few(base_family = font) +
+    scale_color_manual(values = c("#dd9133", "#5DA5DA"),
+                       labels = c("GAD-7", "PHQ-9"),
+                       guide = "none") +
+    scale_fill_manual(values = c("gray95", "gray15"),
+                      labels = c("", "National lockdown"),
+                      guide = guide_legend(nrow = 1,
+                                           direction = "horizontal")) +
+    scale_x_date(breaks = date_breaks,
+                 date_labels = "%b\n%Y") +
+    labs(title = paste0("Change in symptoms of anxiety and depression ",
+                        "associated\nwith time-varying COVID stressors"),
+         y = "Score",
+         fill = "") +
+    theme(axis.title.x = element_blank(),
+          strip.text.x = element_text(size = 14,
+                                    margin = margin(10, 0, 10, 0, "pt")),
+          strip.text.y = element_text(angle = 0,
+                                      size = 13,
+                                      margin = margin(0, 15, 0, 15, "pt")),
+          plot.title = element_text(size = 18,
+                                    margin = margin(10, 0, 5, 0, "pt")),
+          axis.text = element_text(size = 12),
+          legend.justification = "right",
+          legend.position = c(1.13, 1.14),
+          legend.key.size = unit(0.5, "cm"),
+          legend.text = element_text(size = 14),
+          legend.title = element_blank(),
+          legend.margin = margin(0, 0, 5, 0, "pt")) +
+                        coord_cartesian(ylim = c(-1, 2))
 
-    # CONTINUE
+# Save ------------------------------------------------------------------------
+ggsave(p_tvc,
+       file = here("analysis", "figures", "tvc.png"),
+       dpi = 600,
+       device = "png",
+       width = 9,
+       height = 8,
+       units = "in")
