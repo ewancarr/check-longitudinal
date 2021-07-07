@@ -12,7 +12,6 @@ library(tidytext)
 load(here("analysis", "outputs", "class_summaries.Rdata"), verbose = TRUE)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
-
 font <- "Franklin Gothic Book"
 
 ###############################################################################
@@ -26,12 +25,16 @@ font <- "Franklin Gothic Book"
 uk_lockdown <- uk_lockdown %>%
     mutate(date = ymd(date),
            class_f = as_factor("Class 1")) %>%
-    select(date, in_lockdown, class_f) 
+    select(date, in_lockdown, class_f)
 
 # GMM trajectory plots --------------------------------------------------------
 
-draw_traj <- function(class_data, 
-                      context_data, 
+make_class_label <- function(class_f, count, proportion) {
+    first(str_glue("{class_f} (n={count}; {round(100 * proportion)}%)"))
+}
+
+draw_traj <- function(class_data,
+                      context_data,
                       outcome = "gad",
                       classes = 4,
                       font = "Georgia") {
@@ -40,8 +43,8 @@ draw_traj <- function(class_data,
     plot_data <- class_data %>%
         filter(y == outcome,
                nclasses == classes) %>%
-        mutate(class_f = factor(paste("Class", class)),
-               date = as_date(time)) 
+        mutate(class_f = factor(paste("Class", new_class)),
+               date = as_date(time))
 
     extra <- context_data %>%
         filter(date >= min(plot_data$date),
@@ -56,7 +59,7 @@ draw_traj <- function(class_data,
         group_by(class_f) %>%
         summarise(last_date = max(date),
                   last_y = last(est),
-                  class_label = first(str_glue("{class_f} (n={count}; {round(100 * proportion)}%)")))
+                  class_label = make_class_label(class_f, count, proportion))
 
     date_breaks <- ymd(c("2020-04-15",
                          "2020-08-15",
@@ -93,18 +96,20 @@ draw_traj <- function(class_data,
 
     # Adjust theming
     p <- p + theme_few(base_family = font) +
-        theme(axis.title.x         = element_blank(),
+        theme(axis.title.x = element_blank(),
               legend.justification = "right",
-              legend.position      = c(0.99, 1.05),
-              legend.key.size      = unit(0.5, "cm"),
-              legend.text          = element_text(size = 12),
-              legend.title         = element_blank(),
-              legend.margin        = margin(0, 0, 5, 0, "pt"),
-              plot.title           = element_text(margin = margin(0, 0, 8, 0, unit = "pt")),
-              plot.caption         = element_text(color = "gray50",
-                                                  size   = 10,
-                                                  hjust  = 0,
-                                                  margin = margin(15, 0, 0, 0, unit = "pt"))) +
+              legend.position = c(0.99, 1.05),
+              legend.key.size = unit(0.5, "cm"),
+              legend.text = element_text(size = 12),
+              legend.title = element_blank(),
+              legend.margin = margin(0, 0, 5, 0, "pt"),
+              plot.title = element_text(margin = margin(0, 0, 8, 0,
+                                                        unit = "pt")),
+              plot.caption = element_text(color = "gray50",
+                                          size   = 10,
+                                          hjust  = 0,
+                                          margin = margin(15, 0, 0, 0,
+                                                          unit = "pt"))) +
         scale_color_few(palette = "Dark",
                         guide = "none") +
         scale_fill_manual(values = c("gray95", "gray15"),
@@ -113,7 +118,7 @@ draw_traj <- function(class_data,
                                                direction = "horizontal",
                                                title_position = "left")) +
         expand_limits(x = ymd("2021-08-15")) +
-        scale_x_date(breaks = date_breaks, 
+        scale_x_date(breaks = date_breaks,
                      date_labels = "%b\n%Y")
 
         return(p)
@@ -128,18 +133,17 @@ p_gad <- draw_traj(class_summaries, uk_lockdown, "gad", 4, font) +
 # PHQ-9, 4 classes ------------------------------------------------------------
 p_phq <- draw_traj(class_summaries, uk_lockdown, "phq", 4, font) +
     labs(title = "B. PHQ-9",
-         y = "PHQ-9 total score") + 
+         y = "PHQ-9 total score") +
     theme(legend.position = "none")
 
 
 # Combine plots ---------------------------------------------------------------
-
 samp <- sum(class_size[class_size$nclasses == 4 &
                        class_size$y == "gad", ]$count)
 tit <- str_glue("Trajectory plots for 4-class GMM models (n={samp})")
 cap <- "Notes. Explain lockdown indicator/source. Explain dots vs. lines."
 
-p_comb <- p_gad / p_phq + 
+p_comb <- p_gad / p_phq +
     plot_annotation(title = tit,
                     caption = cap,
                     theme = theme(title = element_text(family = font,
@@ -153,6 +157,7 @@ ggsave(p_comb,
        width = 8,
        height = 10,
        units = "in")
+
 
 ###############################################################################
 ####                                                                      #####
@@ -169,29 +174,29 @@ lookup <- read_csv(here("analysis",
            label = factor(label, levels = na.omit(unique(label))))
 
 lookup <- cross_df(list(y = c("gad", "phq"),
-                        class = 1:3,
-                        ref = 4)) %>%
+                        new_class = 1:3,
+                        new_ref = 4)) %>%
     crossing(lookup)
-
 
 or <- odds_ratios %>%
     filter(# Select reference class = 4
-           ref == 4,
-           class != 4,
+           new_ref == 4,
+           new_class != 4,
            # Remove coefficients we can't/won't plot
            str_detect(model_id, "_age$|_sex$|_ethnicity$", negate = TRUE),
            !(param %in% c("shield_i", "is_staff")),
            # Remove duplicated 'age' and 'sex' rows
            (!(str_detect(model_id, "_agesex$", negate = TRUE) &
-              param %in% c("age", "female"))),
+              param %in% c("age", "female", "age10"))),
            (adj == "adj" | str_detect(model_id, "_agesex$"))) %>%
-    select(y, model_id, ref, class, param, est, lo = low025, hi = up025) %>%
+    select(y, new_ref, new_class, param, est, lo = low025, hi = up025) %>%
     full_join(lookup) %>%
     mutate(refcat = if_else(is.na(est), "ref", y),
            across(c(est, lo, hi), ~ replace_na(as.numeric(.x), 1)),
-           class_lab = case_when(class == 1 ~ "Class 1\n'Persistent high severity'",
-                                 class == 2 ~ "Class 2\n'Against cases'",
-                                 class == 3 ~ "Class 3\n'With cases'"),
+           class_lab = case_when(
+                new_class == 1 ~ "Class 1\n'Persistent high severity'",
+                new_class == 2 ~ "Class 2\n'Against cases'",
+                new_class == 3 ~ "Class 3\n'With cases'"),
            nudge = case_when(y == "gad" ~ 0.25,
                              y == "phq" ~ -0.25,
                              TRUE ~ 0))
@@ -235,11 +240,14 @@ p_r3step <- ggplot(or,
           legend.text          = element_text(size = 10),
           legend.title         = element_blank(),
           legend.margin        = margin(0, 0, 5, 0, "pt")) +
-    labs(title = "Associations of baseline variables with trajectory class assignment",
+    labs(title = paste0("Associations of baseline variables with trajectory ",
+                        "class assignment"),
          subtitle = "Reference class is 'low severity'.",
          x = "Odds ratio (95% confidence interval)",
          caption = "Notes.",
-         color = "Outcome") 
+         color = "Outcome")
+
+
 # Save ------------------------------------------------------------------------
 ggsave(p_r3step,
        file = here("analysis", "figures", "r3step.png"),
@@ -268,7 +276,7 @@ date_lookup <- sel %>%
 
 tvcov_coef %>%
     filter(class == 1,
-           low2_5 > -5, 
+           low2_5 > -5,
            up2_5 < 5) %>%
     left_join(date_lookup, by = "dap") %>%
     ggplot(aes(x = midpoint,

@@ -5,7 +5,7 @@
 renv::load()
 library(tidyverse)
 library(furrr)
-plan(multicore)
+plan(multicore, workers = 12)
 library(here)
 library(fs)
 library(MplusAutomation)
@@ -47,7 +47,7 @@ get_filename <- function(path) {
 ####                                                                      #####
 ###############################################################################
 
-current <- "2021-06-25 Minor updates, selected samples"
+current <- "2021-06-01 Remove sparse TVCs"
 p <- here("analysis", "mplus", "saved_fits", current)
 
 # Check: are any output files missing? ----------------------------------------
@@ -90,21 +90,27 @@ names(fits) <- path_rel(path_ext_remove(names(fits)),
 
 # Function to ensure class numbering is consistent across outcomes ------------
 
-# NOTE: This may need to be updated each time the GMM models are re-run.
-
-switcher <- function(outcome, lc) {
-    lc <- as.numeric(lc)
-    case_when(outcome == "gad" ~ lc,
-              outcome == "phq" & lc == 4 ~ 1,
-              outcome == "phq" & lc == 2 ~ 2,
-              outcome == "phq" & lc == 1 ~ 3,
-              outcome == "phq" & lc == 3 ~ 4)
-}
+lu <- fits %>%
+    map_dfr("gh5", .id = "model_id") %>%
+    filter(model_id %in% c("gmm/gmm_gad_4_cubic",
+                           "gmm/gmm_phq_4_cubic",
+                           "r3step/gad_agesex",
+                           "r3step/phq_agesex"),
+           dap == 53) %>%
+    select(model_id, est.1, est.2, est.3, est.4) %>%
+    separate(model_id, c("type", "model"), sep = "/") %>%
+    mutate(y = str_match(model, "gad|phq")) %>%
+    select(type, y, est.1:est.4) %>%
+    gather(orig_class, new_class, -type, -y) %>%
+    group_by(type, y) %>%
+    mutate(orig_class = parse_number(str_replace(orig_class, "\\.", "")),
+           new_class = rank(-new_class)) %>%
+    arrange(type, y, new_class)
 
 make_classes_consistent <- function(dat) {
-    mutate(dat,
-           class_orig = class,
-           class = switcher(y, class))
+    left_join(dat, lu, by = c("model" = "type",
+                         "y" = "y",
+                         "class" = "orig_class"))
 }
 
 ###############################################################################
@@ -168,7 +174,6 @@ class_ids <- map_dfr(gmm, "savedata", .id = "model_id") %>%
     separate(model_id, c("model", "y", "nclasses", "form")) %>%
     make_classes_consistent()
 
-
 ###############################################################################
 ####                                                                      #####
 ####                             R3STEP MODELS                            #####
@@ -194,8 +199,15 @@ odds_ratios <- map(r3step, "r3step") %>%
            across(c(ref, class), parse_number),
            y = str_match(model_id, "^([a-z]+)[_a-z]+$")[, 2]) %>%
     select(y, model_id, adj, ref, class, param, cell, est, low025, up025) %>%
-    mutate(class = switcher(y, class),
-           ref = switcher(y, ref))
+    mutate(type = "r3step") %>%
+    rename(orig_class = class,
+           orig_ref = ref) %>%
+    # Switch classes to be consistent
+    left_join(lu, by = c("type", "orig_class", "y")) %>%
+    # Switch reference class to be consistent
+    left_join(rename(lu,
+                     orig_ref = orig_class,
+                     new_ref = new_class))
 
 ###############################################################################
 ####                                                                      #####
@@ -205,7 +217,7 @@ odds_ratios <- map(r3step, "r3step") %>%
 
 tvcov <- pick(fits, "^tvcov")
 
-process_tvc <- function(tvc) {
+process_tvc <- function(tvc, lookup) {
     samp <- tvc$summaries$Observations
     tvc$parameters$ci.std.standardized %>%
                       filter(str_detect(paramHeader, "^[GADPHQ0-9]+\\.ON")) %>%
@@ -215,9 +227,9 @@ process_tvc <- function(tvc) {
            tvc = tolower(str_replace_all(param, "[0-9]", "")),
            n_classes = max(latent_class),
            n_sample = samp) %>%
-    select(y, tvc, dap, low2_5, est, up2_5, class = latent_class, n_sample) %>%
-    make_classes_consistent() %>%
-    arrange(class, dap)
+    select(y, tvc, dap, low2_5, est, up2_5,
+           orig_class = latent_class, n_sample) %>%
+    arrange(orig_class, dap)
 }
 
 tvcov_coef <- map_dfr(tvcov, process_tvc)
