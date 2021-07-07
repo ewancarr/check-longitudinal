@@ -44,7 +44,7 @@ table(aw$t)
 # another time variable that maps "survey period" onto a "week number". I'll
 # use the master tracker for this.
 
-tracker <- read_xlsx(here("data", "raw", "survey", 
+tracker <- read_xlsx(here("data", "raw", "survey",
                           latest,
                           "master_tracker.xlsx"),
           sheet = "Schedule",
@@ -56,14 +56,15 @@ tracker <- read_xlsx(here("data", "raw", "survey",
 # Get date for baseline (0-period); TODO: query, this isn't in tracker?
 bl_date <- aw %>%
     filter(t == 0) %>%
-    summarise(midpoint = min(start_date) + (interval(min(start_date),
-                                                      max(start_date)) / days(1))) %>%
+    summarise(midpoint = min(start_date) +
+                         (interval(min(start_date),
+                                   max(start_date)) / days(1))) %>%
     mutate(batch = 0)
 
 tracker <- bind_rows(bl_date, tracker) %>%
     mutate(delta = interval(min(midpoint), midpoint) / weeks(1),
            # Get approx. delta, because decimal timing is awkward
-           dap = round(delta)) 
+           dap = round(delta))
 
 aw <- left_join(aw, tracker, by = c("t" = "batch"))
 
@@ -88,8 +89,8 @@ p_female <- prop.table(table(bl$gender))[1]
 
 bl$female <- bl$gender == "Female"
 to_replace <- bl$gender %in% c("Other", "Prefer not to say")
-bl$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
-                                size = sum(to_replace),     # FALSE = male
+bl$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE: female
+                                size = sum(to_replace),     # FALSE: male
                                 prob = c(p_female, 1 - p_female),
                                 replace = TRUE)
 
@@ -98,38 +99,29 @@ bl$female[to_replace] <- sample(c(TRUE, FALSE),             # TRUE = female
 bl$is_staff <- str_detect(bl$role, "staff")
 
 bl <- bl %>%
-    mutate(role_cat = factor(case_when(staff_role %in% c("Academic",
-                                                         "Specialists and professionals",
-                                                         "Management") ~ "Academic, specialist and management",
-                                       staff_role %in% c("Research",
-                                                         "Clerical",
-                                                         "Technical") ~ "Research, clerical and technical",
-                                       staff_role %in% c("Teaching",
-                                                         "Facilities",
-                                                         "Clinical") ~ "Teaching, facilities and clinical",
-                                       !is_staff ~ "PGR student",
-                                       TRUE ~ "Missing"),
-                             levels = c("Academic, specialist and management",
-                                        "Research, clerical and technical",
-                                        "Teaching, facilities and clinical",
-                                        "PGR student",
-                                        "Missing")))
+    mutate(role_cat = factor(case_when(
+      staff_role %in% c("Academic",
+                        "Specialists and professionals",
+                        "Management") ~ "Academic, specialist and management",
+      staff_role %in% c("Research",
+                        "Clerical",
+                        "Technical") ~ "Research, clerical and technical",
+      staff_role %in% c("Teaching",
+                        "Facilities",
+                        "Clinical") ~ "Teaching, facilities and clinical",
+      !is_staff ~ "PGR student",
+      TRUE ~ "Missing"),
+      levels = c("Academic, specialist and management",
+                 "Research, clerical and technical",
+                 "Teaching, facilities and clinical",
+                 "PGR student",
+                 "Missing")))
 
 count(bl, role_cat)
 
 # Ethnicity -------------------------------------------------------------------
 
-bl <- bl %>%
-    mutate(ethnic_group = case_when(str_detect(ethnicity, "Mixed") ~ "Mixed",
-                                    str_detect(ethnicity, "White") ~ "White",
-                                    str_detect(ethnicity, "Black") ~ "Black",
-                                    str_detect(ethnicity, "Asian") ~ "Asian",
-                                    str_detect(ethnicity, "Other") ~ "Other",
-                                    TRUE ~ NA_character_),
-           ethnic_f = factor(ethnic_group,
-                              levels = c("White", "Black", "Asian",
-                                         "Mixed", "Other")))
-
+bl <- recode_ethnicity(bl)
 
 # Other covariates ------------------------------------------------------------
 
@@ -155,7 +147,8 @@ bl <- bl %>%
                               is.na(keyworker_self) ~ "Missing",
                               TRUE ~ "Yes"),
            kwself_b = kwself == "Yes",
-           # NOTE: kwself_b codes both "No" and "Missing" as FALSE. This isn't ideal.
+           # NOTE: kwself_b codes both "No" and "Missing" as FALSE. 
+           # This isn't ideal.
            livalon = str_detect(living_current, "Alone"),
            renting = case_when(str_detect(accom, "[Rr]ented") ~ TRUE,
                                accom == "Missing" ~ NA,
@@ -206,8 +199,8 @@ aw <- aw %>%
 
 # Identify '2 monthly' questionnaires -----------------------------------------
 
-periods <- read_xlsx(here("data", "raw", "survey", 
-                          latest, 
+periods <- read_xlsx(here("data", "raw", "survey",
+                          latest,
                           "master_tracker.xlsx"),
                      sheet = "Total Counts",
                      range = "A21:D61") %>%
@@ -241,7 +234,7 @@ get_year <- function(month) {
                            "December") ~ 2020)
 }
 
-max_na <- function(x) ifelse( !all(is.na(x)), max(x, na.rm = TRUE), NA)
+max_na <- function(x) ifelse(!all(is.na(x)), max(x, na.rm = TRUE), NA)
 
 vaccine_dates <- aw %>%
     # Remove people who have not been vaccinated
@@ -253,15 +246,25 @@ vaccine_dates <- aw %>%
            max_dose = max_na(which_dose)) %>%
     drop_na(max_dose) %>%
     mutate(# Derive vaccination year based on month
-           dose1_yearfix = if_else(max_dose >= 1, get_year(dose1_month), NA_real_),
-           dose2_yearfix = if_else(max_dose >= 2, get_year(dose2_month), NA_real_),
+           dose1_yearfix = if_else(max_dose >= 1,
+                                   get_year(dose1_month),
+                                   NA_real_),
+           dose2_yearfix = if_else(max_dose >= 2,
+                                   get_year(dose2_month),
+                                   NA_real_),
            # If only the day is missing, replace with 15th of the month
-           dose1_day = if_else(!is.na(dose1_month) & !is.na(dose1_yearfix) & is.na(dose1_day), "15", dose1_day),
-           dose2_day = if_else(!is.na(dose2_month) & !is.na(dose2_yearfix) & is.na(dose2_day), "15", dose2_day),
+           dose1_day = if_else(!is.na(dose1_month) &
+                               !is.na(dose1_yearfix) &
+                               is.na(dose1_day), "15", dose1_day),
+           dose2_day = if_else(!is.na(dose2_month) &
+                               !is.na(dose2_yearfix) &
+                               is.na(dose2_day), "15", dose2_day),
            # Derive dates
-           dd1 = ymd(paste(dose1_yearfix, dose1_month, dose1_day), quiet = TRUE),
-           dd2 = ymd(paste(dose2_yearfix, dose2_month, dose2_day), quiet = TRUE)) %>%
-    summarise(across(c(dd1, dd2), ~ first(na.omit(.x)))) %>% 
+           dd1 = ymd(paste(dose1_yearfix, dose1_month, dose1_day),
+                     quiet = TRUE),
+           dd2 = ymd(paste(dose2_yearfix, dose2_month, dose2_day),
+                     quiet = TRUE)) %>%
+    summarise(across(c(dd1, dd2), ~ first(na.omit(.x)))) %>%
     select(pid, dd1, dd2)
 
 # At each survey period, had the participant and their first/second vaccine? --
@@ -270,7 +273,7 @@ aw <- aw %>%
     left_join(vaccine_dates, by = "pid") %>%
     mutate(had_v1 = dd1 < midpoint,
            had_v2 = dd2 < midpoint,
-           across(c(had_v1, had_v2), replace_na, FALSE)) 
+           across(c(had_v1, had_v2), replace_na, FALSE))
 
 
 # NOTE: this assumes that if people don't provide a vaccination date, they
@@ -286,16 +289,24 @@ aw %>%
 
 # COVID stressors -------------------------------------------------------------
 
-categories <- flatten_chr(str_split(aw$stress_question, ",")) %>% discard(~ is.na(.x)) %>% str_squish() %>% unique() 
+categories <- flatten_chr(str_split(aw$stress_question, ",")) %>%
+  discard(~ is.na(.x)) %>%
+  str_squish() %>%
+  unique()
 print(categories)
 
-q1 <- "Unable to pay bills|sufficient food|Lost your job|Evicted|food bank|lost their job"
+q1 <- paste(c("Unable to pay bills",
+              "sufficient food",
+              "Lost your job",
+              "Evicted",
+              "food bank",
+              "lost their job"), collapse = "|")
 q2 <- "lost somebody close to you|in hospital"
 q3 <- "delay major life plans"
 q4 <- "difficulties accessing required medication"
 
 stressors <- aw %>%
-    select(pid, t, stress_question) %>% 
+    select(pid, t, stress_question) %>%
     complete(crossing(pid, t)) %>%
     mutate(s_material = str_detect(stress_question, q1),
            s_person = str_detect(stress_question, q2),
@@ -305,7 +316,9 @@ stressors <- aw %>%
     arrange(pid, t) %>%
     mutate(across(starts_with("s_"), replace_na, FALSE),
            across(starts_with("s_"), cumsum, .names = "{col}_sum"),
-           across(ends_with("_sum"), lead, 3, .names = "{col}_lag", default = FALSE),
+           across(ends_with("_sum"), lead, 3,
+                  .names = "{col}_lag",
+                  default = FALSE),
            across(ends_with("_lag"), cummax))
 
 aw <- stressors %>%
@@ -323,8 +336,8 @@ fill_lead <- function(d, var) {
         mutate(lead3 = lead({{var}}, 3),
                lead2 = lead({{var}}, 2),
                lead1 = lead({{var}}, 1),
-               {{var}} := coalesce({{var}}, lead1, lead2, lead3)) %>% 
-        select(-lead1, -lead2, -lead3) 
+               {{var}} := coalesce({{var}}, lead1, lead2, lead3)) %>%
+        select(-lead1, -lead2, -lead3)
 }
 
 furlough <- aw %>%
@@ -344,12 +357,13 @@ furlough <- aw %>%
     group_by(pid) %>%
     fill_lead(current_furlough) %>%
     mutate(across(c(current_furlough, prev_furlough), replace_na, FALSE),
-           ever_furlough = as.logical(cummax(current_furlough | prev_furlough))) %>%
+           ever_furlough = as.logical(cummax(current_furlough |
+                                             prev_furlough))) %>%
     select(pid, t,
            fur_cu = current_furlough,
            fur_ev = ever_furlough)
 
-aw <- left_join(aw, furlough, by = c("pid", "t")) 
+aw <- left_join(aw, furlough, by = c("pid", "t"))
 
 # NOTE: we're interpreting "NA" values in the furlough question as "not on
 # furlough". This is problematic.

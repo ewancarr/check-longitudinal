@@ -18,11 +18,11 @@ analytical <- bl %>%
     select(extref = `ExternalReference`,
            ip = `IPAddress`,
            response_id = ResponseId,
-           login_id = `Login ID`) 
+           login_id = `Login ID`)
 
 analytical <- analytical %>%
     left_join(ids, by = c("extref", "ip", "login_id", "response_id")) %>%
-    left_join(sel, by = "pid") 
+    left_join(sel, by = "pid")
 samples <- list()
 samples$s1 <- unique(analytical$pid)
 print(nrow(analytical))
@@ -55,7 +55,7 @@ analytical <- analytical %>%
             role_cat,
             chronic_any,
             relat,
-            renting) 
+            renting)
 samples$s3 <- unique(analytical$pid)
 
 # Save
