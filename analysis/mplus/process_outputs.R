@@ -15,7 +15,7 @@ library(lubridate)
 source(here("analysis", "functions", "extract_multinomial.R"))
 
 read_models <- function(path, r3step = FALSE) {
-    res <- readModels(path)
+    res <- MplusAutomation::readModels(path)
     if (r3step) {
         try(res$r3step <- extract_r3step(path), silent = TRUE)
     }
@@ -32,12 +32,14 @@ extract_plot_data <- function(file, dap = times) {
     gh5 <- H5File$new(file, mode = "r+")
     return(data.frame(
       dap = dap,
-      est = gh5[["means_and_variances_data/y_estimated_means/values"]][,],
-      obs = gh5[["means_and_variances_data/y_observed_means/values"]][,]
+      est = gh5[["means_and_variances_data/y_estimated_means/values"]][, ],
+      obs = gh5[["means_and_variances_data/y_observed_means/values"]][, ]
     ))
 }
 
-get_filename <- function(path) { path_ext_remove(path_file(path)) }
+get_filename <- function(path) {
+    path_ext_remove(path_file(path))
+}
 
 ###############################################################################
 ####                                                                      #####
@@ -70,7 +72,10 @@ fits <- read_dir(p)
 inp <- readLines(paste0(p, "/gmm/gmm_gad_4_cubic.inp"))
 start <- grep("^NAMES =.*", inp)
 end <- grep("^USEVARIABLES =.*", inp) - 1
-times <- parse_number(grep("^gad[0-9]+", str_split(paste(inp[start:end], collapse = " "), " ")[[1]], value = TRUE))
+times <- parse_number(grep("^gad[0-9]+",
+                           str_split(paste(inp[start:end],
+                                           collapse = " "), " ")[[1]],
+                           value = TRUE))
 
 fits <- map2(fits, names(fits),
      function(res, path) {
@@ -114,17 +119,19 @@ pick <- function(fits, term) {
     return(res)
 }
 
-get_id <- function(d) { separate(d, model_id, c("model", "y", "nclasses", "form")) }
+get_id <- function(d) {
+    separate(d, model_id, c("model", "y", "nclasses", "form"))
+}
 gmm <- pick(fits, "^gmm")
 
 # Extract fit statistics ------------------------------------------------------
 fit_stat <- map_dfr(gmm, "summaries", .id = "model_id") %>%
     janitor::clean_names() %>%
     as_tibble() %>%
-    get_id() 
+    get_id()
 
 # Extract class sizes ---------------------------------------------------------
-class_size <- gmm %>% 
+class_size <- gmm %>%
     map_dfr(~ .x$class_counts$mostLikely, .id = "model_id") %>%
     arrange(model_id, class) %>%
     get_id() %>%
@@ -137,7 +144,7 @@ class_summaries <- gmm %>%
     gather(k, v, -dap, -nclasses, -form, -y, -model) %>%
     as_tibble() %>%
     drop_na() %>%
-    mutate(class = as.numeric(str_match(k, "^[estobs]+\\.([0-9]+)$")[,2]),
+    mutate(class = as.numeric(str_match(k, "^[estobs]+\\.([0-9]+)$")[, 2]),
            type = case_when(str_detect(k, "^est") ~ "est",
                             str_detect(k, "^obs") ~ "obs")) %>%
     select(nclasses, class, y, model, dap, v, type) %>%
@@ -168,7 +175,9 @@ class_ids <- map_dfr(gmm, "savedata", .id = "model_id") %>%
 ####                                                                      #####
 ###############################################################################
 
-get_id <- function(d) { separate(d, model_id, c("y", "x")) }
+get_id <- function(d) {
+    separate(d, model_id, c("y", "x"))
+}
 r3step <- pick(fits, "^r3step")
 
 # Check: did any models fail to run?
