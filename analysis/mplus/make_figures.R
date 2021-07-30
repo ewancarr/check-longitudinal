@@ -144,7 +144,7 @@ tit <- str_glue("Trajectory plots for 4-class GMM models (n={samp})")
 cap <- "Notes. Explain lockdown indicator/source. Explain dots vs. lines."
 
 p_comb <- p_gad / p_phq +
-    plot_annotation(title = tit,
+    plot_annotation(# title = tit,
                     caption = cap,
                     theme = theme(title = element_text(family = font,
                                                        size = 14)))
