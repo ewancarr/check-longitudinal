@@ -2,6 +2,7 @@
 # Author:       Ewan Carr
 # Started:      2021-06-21
 
+renv::load()
 library(tidyverse)
 library(here)
 library(ggthemes)
@@ -13,6 +14,36 @@ load(here("analysis", "outputs", "class_summaries.Rdata"), verbose = TRUE)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
 font <- "Franklin Gothic Book"
+
+
+###############################################################################
+####                                                                      #####
+####            Fit statistics for different numbers of classes           #####
+####                                                                      #####
+###############################################################################
+
+table_s2 <- fit_stat %>%
+    select(y, nclasses, ll, aic, a_bic, t11_lmr_p_value) %>%
+    mutate(y = case_when(y == "gad" ~ "Anxiety (GAD-7)",
+                         y == "phq" ~ "Depression (PHQ-9)"),
+           ll = -2 * ll) %>%
+    group_by(y) %>%
+    mutate(across(c(ll, aic, a_bic), ~ if_else(nclasses == 3,
+                                               NA_real_,
+                                               .x - lag(.x)),
+                  .names = "d_{.col}"),
+           across(c(ll, d_ll, aic, d_aic, a_bic, d_a_bic),
+                  ~ sprintf("%.0f", .x)),
+           t11_lmr_p_value = sprintf("%.03f", t11_lmr_p_value)) %>%
+    filter(nclasses %in% 3:7) %>%
+    select(y, nclasses,
+           ll, d_ll,
+           aic, d_aic,
+           a_bic, d_a_bic,
+           t11_lmr_p_value)
+
+write_csv(table_s2, "~/table_s2.csv")
+
 
 ###############################################################################
 ####                                                                      #####
