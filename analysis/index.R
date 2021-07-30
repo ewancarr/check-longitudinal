@@ -11,11 +11,9 @@ source(here("analysis", "cleaning", "import_excel.R"), echo = TRUE)
 # Clean data
 source(here("analysis", "cleaning", "cleaning.R"), echo = TRUE)
 
-# Generate weights
+# Generate weights; merge with clean data
 source(here("analysis", "weights", "baseline_weights.R"), echo = TRUE)
 source(here("analysis", "weights", "longitudinal_weights.R"), echo = TRUE)
-
-# Merge baseline weights with clean data
 source(here("analysis", "cleaning", "add_weights.R"), echo = TRUE)
 
 # Create pseudo-anonimised version

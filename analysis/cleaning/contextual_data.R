@@ -18,40 +18,13 @@ uk_lockdown <- ox %>%
     mutate(date = ymd(date),
            in_lockdown = (c6_stay_at_home_requirements %in% c(2, 3)))  # [A]
 
-    # [A] 
+    # [A]
     # 1 = recommend not leaving house
-    # 2 = require not leaving house with exceptions for daily exercise, grocery shopping, and 'essential' trips
-    # 3 = require not leaving house with minimal exceptions (eg allowed to leave once a week, or only one person can leave at a time, etc)
+    # 2 = require not leaving house with exceptions for daily exercise,
+    #     grocery shopping, and 'essential' trips
+    # 3 = require not leaving house with minimal exceptions (eg allowed to
+    #     leave once a week, or only one person can leave at a time, etc)
 
 save(uk_lockdown, file = here("data", "clean", "contextual",
                               "uk_lockdown.Rdata"))
-
-# table(ox$country_name)
-
-# gov_uk <- "https://api.coronavirus.data.gov.uk/v2/data?areaType=overview&metric=hospitalCases&metric=newAdmissions&metric=newCasesByPublishDate&metric=cumDeaths28DaysByDeathDate&format=csv"
-# d1 <- read_csv(gov_uk) %>%
-#     clean_names() %>%
-#     select(date,
-#            deaths28 = cum_deaths28days_by_death_date,
-#            hospital_cases, 
-#            new_admissions,
-#            new_cases = new_cases_by_publish_date)
-
-# save(d1, file = here("data", "raw", "contextual", "gov_d1.Rdata"))
-
-# oxcgrt <- read_csv("https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv")
-
-# url <- "https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range/2020-04-01/2021-04-01"
-
-# oxcgrt <- fromJSON(url)
-
-# oxcgrt$data[[1]][[1]]
-
-
-# oxcgrt %>%
-#     filter(CountryName == "United Kingdom") %>%
-#     clean_names() %>%
-#     mutate(date = as_date(date))
-
-
 

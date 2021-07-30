@@ -22,7 +22,7 @@ aw <- aw %>%
         group_by(pid) %>%
         mutate(max_wave = max(t, na.rm = TRUE)) %>%
         ungroup()
-            
+
 count(aw, max_wave)
 count(aw, excluded)
 
@@ -38,8 +38,8 @@ aw <- aw %>%
 table(aw$t)
 
 # The 't' variable is based on the filename of each dataset.
-# t = 0 = '0-period.xlsx'
-# t = 1 = '1-period.xlsx' and so on.
+# t => 0 => '0-period.xlsx'
+# t => 1 => '1-period.xlsx' and so on.
 # The gaps between period 0, 1, 2 etc. is inconsistent. So, we want to create
 # another time variable that maps "survey period" onto a "week number". I'll
 # use the master tracker for this.
@@ -147,7 +147,7 @@ bl <- bl %>%
                               is.na(keyworker_self) ~ "Missing",
                               TRUE ~ "Yes"),
            kwself_b = kwself == "Yes",
-           # NOTE: kwself_b codes both "No" and "Missing" as FALSE. 
+           # NOTE: kwself_b codes both "No" and "Missing" as FALSE.
            # This isn't ideal.
            livalon = str_detect(living_current, "Alone"),
            renting = case_when(str_detect(accom, "[Rr]ented") ~ TRUE,
@@ -194,7 +194,7 @@ aw <- aw %>%
            gad_pm    = (gad_pm * 7) / (7 - gad_nmiss),
            gad_total = case_when(gad_nmiss > 1 ~ NA_real_,
                                  gad_nmiss == 1 ~ gad_pm,
-                                 gad_nmiss == 0 ~ gad_sum)) 
+                                 gad_nmiss == 0 ~ gad_sum))
 
 
 # Identify '2 monthly' questionnaires -----------------------------------------
