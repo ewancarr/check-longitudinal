@@ -1,391 +1,177 @@
-# Title:      Weight mean PHQ-9 and GAD-7 by age, for SMT report
+# Title:      Weighted means of PHQ-9 and GAD-7 by age and gender
 # Date:       2021-07-06
+# Updated:    2021-07-30
 
 renv::load()
 library(tidyverse)
 library(here)
 library(lubridate)
 library(ggthemes)
+library(colorspace)
 library(extrafont)
 library(patchwork)
 library(srvyr)
-chosen_font <- "Calibri"
+chosen_font <- "Franklin Gothic Book"
 load(here("data", "clean", "pseudo_anon.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
 
-uk_lockdown <- uk_lockdown %>%
-  mutate(date = ymd(date),
-         class_f = as_factor("Class 1")) %>%
-  select(date, in_lockdown, class_f)
+# Select analytical sample ----------------------------------------------------
 
+load(here("data", "clean", "samples.Rdata"), verbose = TRUE)
+sel <- sel %>%
+    filter(pid %in% samples$s3)
 
-# Create categorical variables for 3 age groups 16-34, 35-54, 55+ =============
+# Recode age/gender; select first non-missing value ---------------------------
+
+sel$agecat <- factor(cut(sel$age, 
+                         breaks = c(-Inf, 16, 34, 54, Inf)),
+                     labels = c("16-34", "35-54", "55+"))
+
+sel$female <- ifelse(sel$female, "Female", "Male")
 
 sel <- sel %>%
-  ungroup() %>%
-  mutate(agecat = factor(cut(age,
-                             breaks = c(-Inf, 16, 34, 54, Inf)),
-                         labels = c("16-34", "35-54", "55+"))) %>%
-  group_by(pid) %>%
-  mutate(agecat = first(na.omit(agecat)))
+  mutate(across(c(female, agecat), ~ first(na.omit(.x))))
 
-# Create 'total' dataset ------------------------------------------------------
+# Add a copy of the dataset to represent 'Total' category ---------------------
+
+sel <- select(sel,
+              pid, w_comb, gad_total, phq_total, midpoint, agecat, female)
 
 total <- sel %>%
   ungroup() %>%
-  select(pid, w_comb, gad_total, phq_total, midpoint) %>%
   mutate(agecat = "Total")
 
-# Prepare plot data -----------------------------------------------------------
+sel <- bind_rows(sel, total)
 
-plot_data <- sel %>%
-  select(w_comb, pid, midpoint, agecat, gad_total, phq_total) %>%
-  bind_rows(total) %>%
-  group_by(midpoint, agecat) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            across(c(phq_total, gad_total),
-                   weighted.mean,
-                   w = w_comb,
-                   na.rm = TRUE)) %>%
-  mutate(midpoint = as.Date(midpoint)) %>%
-  gather(measure, value, -midpoint, -agecat) %>%
-  arrange(midpoint, agecat) %>%
-  drop_na() %>%
-  mutate(outcome = case_when(measure == "phq_total" ~ "PHQ-9 total score",
-                             measure == "gad_total" ~ "GAD-7 total score"))
+# Function to generate plot data, for age group OR gender ---------------------
 
-# Prepare data on lockdown dates ----------------------------------------------
+prepare_data <- function(sel, lockdown, var) {
+    # Prepare 'Total' group
+    total <- sel %>%
+      ungroup() %>%
+      mutate({{var}} := "Total")
 
-extra <- uk_lockdown %>%
-  filter(date >= min(plot_data$midpoint, na.rm = TRUE),
-         date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
-  mutate(agegroup = factor("Total"),
-         poly_size = max(plot_data$value, na.rm = TRUE) + 0.5,
-         y = poly_size / 2,
-         height = poly_size)
+    # Prepare weighted means, stratified by chosen variable
+    dat <- sel %>%
+        bind_rows(total) %>%
+        select(w_comb, pid, midpoint, {{var}}, gad_total, phq_total) %>%
+        bind_rows(total) %>%
+        group_by(midpoint, {{var}}) %>%
+        summarise(midpoint = first(na.omit(midpoint)),
+                  across(c(phq_total, gad_total),
+                         weighted.mean,
+                         w = w_comb,
+                         na.rm = TRUE)) %>%
+        mutate(midpoint = as.Date(midpoint)) %>%
+        gather(measure, value, -midpoint, -{{var}}) %>%
+        arrange(midpoint, {{var}}) %>%
+        drop_na() %>%
+        mutate(outcome = case_when(measure == "phq_total" ~ "Symptoms of depression (PHQ-9)",
+                                   measure == "gad_total" ~ "Symptoms of anxiety (GAD-7)"))
 
-# Using ggplot to plot the data frame defined above ---------------------------
+    # Prepare contextual data on UK lockdown dates
+    lock <- lockdown %>%
+      mutate(date = ymd(date)) %>%
+      select(date, in_lockdown) %>%
+      filter(date >= min(plot_data$midpoint, na.rm = TRUE),
+             date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
+      mutate({{var}} := factor("Total"),
+             poly_size = max(plot_data$value, na.rm = TRUE) + 0.5,
+             y = poly_size / 2,
+             height = poly_size)
 
-date_breaks <- ymd(c("2020-04-15",
-                     "2020-08-15",
-                     "2020-12-15",
-                     "2021-04-15"))
+      return(list(plot_data = dat,
+                  lockdown = lock))
+}
 
-p <- ggplot(plot_data,
-            aes(x = midpoint,
-                y = value,
-                group = agecat,
-                color = agecat)) +
-  geom_tile(data = extra,
-            aes(y      = y,
-                height = height,
-                x      = date,
-                fill   = in_lockdown),
-            alpha = 0.1,
-            inherit.aes = FALSE) +
-  geom_line() +
-  geom_point() +
-  theme_few(base_family = chosen_font) +
-  scale_color_few() +
-  scale_x_date(breaks = date_breaks,
-               date_labels = "%b\n%Y") +
-  theme(axis.title.x = element_blank(),
-        strip.text = element_text(size = 13)) +
-  scale_fill_manual(values = c("gray95", "gray15"),
-                    labels = c("", "National lockdown")) +
-  labs(y = "Weighted score",
-       color = "Age group",
-       fill = "") +
-  facet_wrap(~ outcome, ncol = 1)
+# Function to generate the plot -----------------------------------------------
 
-ggsave(p,
-       filename = "final_age_plot4.png",
+make_the_plot <- function(sel, lock, var) {
+    d <- prepare_data(sel, lock, {{var}})
+    date_breaks <- ymd(c("2020-04-15",
+                         "2020-08-15",
+                         "2020-12-15",
+                         "2021-04-15"))
+    p <- ggplot(rename(d$plot_data, byvar := {{var}}),
+                aes(x = midpoint,
+                    y = value,
+                    group = byvar,
+                    color = byvar)) +
+      geom_tile(data = d$lockdown,
+                aes(y      = y,
+                    height = height,
+                    x      = date,
+                    fill   = in_lockdown),
+                alpha = 0.1,
+                inherit.aes = FALSE) +
+      geom_line(size = 0.8) +
+      geom_point(size = 2) +
+      theme_few(base_family = chosen_font) +
+      geom_hline(yintercept = 4,
+                 size = 0.5,
+                 color = "gray50",
+                 alpha = 0.5,
+                 linetype = "dotted") +
+      scale_color_few(palette = "Medium") +
+      scale_x_date(breaks = date_breaks,
+                   date_labels = "%b\n%Y") +
+      theme(axis.title.x = element_blank(),
+            plot.title = element_text(face = "bold",
+                                      margin = margin(1, 0, 0, 0, "cm")),
+            strip.text = element_text(size = 13),
+            strip.background = element_blank(),
+            legend.title = element_blank(),
+            legend.key.height = unit(0.3, "cm"),
+            legend.position = c(0.87, 1.1),
+            plot.margin = unit(c(0, 0.2, 0.2, 0.2), "cm")) +
+      scale_fill_manual(values = c("gray95", "gray15"),
+                        labels = c("", "National lockdown")) +
+      facet_wrap(~ outcome, ncol = 1) +
+      guides(fill = "none",
+             shape = "none")
+      return(p)
+}
+
+add_label <- function(ypos, lab) {
+        annotate("text",
+                 x = ymd("2020-04-15"),
+                 y = ypos,
+                 label = lab,
+                 size = 3,
+                 family = chosen_font,
+                 fontface = "italic",
+                 hjust = 0,
+                 color = "gray50")
+}
+
+# Make plot for age
+p_left <- make_the_plot(sel, uk_lockdown, agecat) +
+        labs(y = "Weighted total score",
+             title = "By age") +
+        add_label(3.75, "None") +
+        add_label(4.25, "Mild symptoms")
+
+# Make plot for gender
+p_right <- make_the_plot(sel, uk_lockdown, female) +
+      labs(title = "By gender") +
+      theme(axis.title.y = element_blank())
+
+# Combine into a single figure
+cap <- str_squish("Notes. Shaded grey regions indicate periods of national
+                  lockdown, as measured by the Oxford Covid-19 Government 
+                  Response Tracker (OxCGRT).")
+
+p_final <- p_left + p_right + 
+    plot_annotation(caption = cap,
+                    theme = theme(
+                                  plot.caption = element_text(family = chosen_font)
+                    )
+    )
+
+ggsave(p_final,
+       filename = here("analysis", "figures", "desc.png"),
        dev = "png",
        dpi = 300,
-       width = 7,
-       height = 6, units = "in")
-
-################################################################################
-################################################################################
-
-#GENDER
-
-gender <- sel %>% 
-  filter(dap == 0)%>%
-  select(pid, bl_female = female)
-
-data_wrangled_phqtotal_female2 <- sel %>%
-  left_join(gender, by = "pid") %>%
-  group_by(dap, bl_female) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            w_comb_phqtotalav = weighted.mean(phq_total, w_comb, na.rm = TRUE))
-
-# Create 'total' dataset ------------------------------------------------------
-
-total <- sel %>%
-  ungroup() %>%
-  select(pid, w_comb, gad_total, phq_total, midpoint) %>%
-  mutate(female = "Total")
-
-# Prepare plot data -----------------------------------------------------------
-
-plot_data <- sel %>%
-  mutate(female = if_else(female, "Female", "Male")) %>%
-  select(w_comb, pid, midpoint, female, gad_total, phq_total) %>%
-  bind_rows(total) %>%
-  group_by(midpoint, female) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            across(c(phq_total, gad_total),
-                   weighted.mean,
-                   w = w_comb,
-                   na.rm = TRUE)) %>%
-  mutate(midpoint = as.Date(midpoint)) %>%
-  gather(measure, value, -midpoint, -female) %>%
-  arrange(midpoint, female) %>%
-  drop_na() %>%
-  mutate(outcome = case_when(measure == "phq_total" ~ "PHQ-9 total score",
-                             measure == "gad_total" ~ "GAD-7 total score"))
-
-
-# Prepare data on lockdown dates ----------------------------------------------
-
-extra <- uk_lockdown %>%
-  filter(date >= min(plot_data$midpoint, na.rm = TRUE),
-         date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
-  mutate(female = factor("Total"),
-         poly_size = max(plot_data$value, na.rm = TRUE) + 0.5,
-         y = poly_size / 2,
-         height = poly_size)
-
-# Using ggplot to plot the data frame defined above ---------------------------
-
-date_breaks <- ymd(c("2020-04-15",
-                     "2020-08-15",
-                     "2020-12-15",
-                     "2021-04-15"))
-
-p <- ggplot(plot_data,
-            aes(x = midpoint,
-                y = value,
-                group = female,
-                color = female)) +
-  geom_tile(data = extra,
-            aes(y      = y,
-                height = height,
-                x      = date,
-                fill   = in_lockdown),
-            alpha = 0.1,
-            inherit.aes = FALSE) +
-  geom_line() +
-  geom_point() +
-  theme_few(base_family = chosen_font) +
-  scale_color_few() +
-  scale_x_date(breaks = date_breaks,
-               date_labels = "%b\n%Y") +
-  theme(axis.title.x = element_blank(),
-        strip.text = element_text(size = 13)) +
-  scale_fill_manual(values = c("gray95", "gray15"),
-                    labels = c("", "National lockdown")) +
-  labs(y = "Weighted score",
-       color = "Gender",
-       fill = "") +
-  facet_wrap(~ outcome, ncol = 1)
-
-ggsave(p,
-       filename = "final_gender_plot4.png",
-       dev = "png",
-       dpi = 300,
-       width = 7,
-       height = 6, units = "in")
-
-###############################################################################
-################################################################################
-#Total weighted PHQ 
-data_wrangled_phqtotal <- sel %>%
-  group_by(dap) %>% 
-  summarise(phqtotalav = mean(phq_total, na.rm = TRUE),
-            w_bl_phqtotalav = weighted.mean(phq_total, w_bl, na.rm = TRUE),
-            w_comb_phqtotalav = weighted.mean(phq_total, w_comb, na.rm = TRUE))
-
-# Create 'total' dataset ------------------------------------------------------
-
-total <- sel %>%
-  ungroup() %>%
-  select(pid, w_comb, gad_total, phq_total, midpoint)
-
-# Prepare plot data -----------------------------------------------------------
-
-plot_data <- sel %>%
-  select(w_comb, pid, midpoint, gad_total, phq_total) %>%
-  bind_rows(total) %>%
-  group_by(midpoint) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            across(c(phq_total, gad_total),
-                   weighted.mean,
-                   w = w_comb,
-                   na.rm = TRUE)) %>%
-  mutate(midpoint = as.Date(midpoint)) %>%
-  gather(measure, value, -midpoint) %>%
-  arrange(midpoint) %>%
-  drop_na() %>%
-  mutate(outcome = case_when(measure == "phq_total" ~ "PHQ-9 total score",
-                             measure == "gad_total" ~ "GAD-7 total score"))
-
-# Prepare data on lockdown dates ----------------------------------------------
-
-extra <- uk_lockdown %>%
-  filter(date >= min(plot_data$midpoint, na.rm = TRUE),
-         date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
-
-# Using ggplot to plot the data frame defined above ---------------------------
-
-date_breaks <- ymd(c("2020-04-15",
-                     "2020-08-15",
-                     "2020-12-15",
-                     "2021-04-15"))
-
-p <- ggplot(plot_data,
-            aes(x = midpoint,
-                y = value)) +
-  geom_tile(data = extra,
-            aes(y      = y,
-                height = height,
-                x      = date,
-                fill   = in_lockdown),
-            alpha = 0.1,
-            inherit.aes = FALSE) +
-  geom_line() +
-  geom_point() +
-  theme_few(base_family = chosen_font) +
-  scale_color_few() +
-  scale_x_date(breaks = date_breaks,
-               date_labels = "%b\n%Y") +
-  theme(axis.title.x = element_blank(),
-        strip.text = element_text(size = 13)) +
-  scale_fill_manual(values = c("gray95", "gray15"),
-                    labels = c("", "National lockdown")) +
-  labs(y = "Weighted score",
-       color = "Age group",
-       fill = "") +
-  facet_wrap(~ outcome, ncol = 1)
-
-ggsave(p,
-       filename = "final_totals_plot4.png",
-       dev = "png",
-       dpi = 300,
-       width = 7,
-       height = 6, units = "in")
-
-
-
-################################################################################
-################################################################################
-
-#Student vs staff
-
-role <- sel %>% 
-  filter(dap == 0)%>%
-  select(pid, bl_staff = is_staff)
-
-data_wrangled_phqtotal_is_staff <- sel %>%
-  left_join(role, by = "pid") %>%
-  group_by(dap, bl_staff) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            w_comb_phqtotalav = weighted.mean(phq_total, w_comb, na.rm = TRUE))
-
-
-# Create 'total' dataset ------------------------------------------------------
-
-total <- sel %>%
-  ungroup() %>%
-  select(pid, w_comb, gad_total, phq_total, midpoint) %>%
-  mutate(is_staff = "Total")
-
-# Prepare plot data -----------------------------------------------------------
-
-plot_data <- sel %>%
-  mutate(is_staff = if_else(is_staff, "Staff", "PGRS")) %>%
-  select(w_comb, pid, midpoint, is_staff, gad_total, phq_total) %>%
-  bind_rows(total) %>%
-  group_by(midpoint, is_staff) %>%
-  summarise(midpoint = first(na.omit(midpoint)),
-            across(c(phq_total, gad_total),
-                   weighted.mean,
-                   w = w_comb,
-                   na.rm = TRUE)) %>%
-  mutate(midpoint = as.Date(midpoint)) %>%
-  gather(measure, value, -midpoint, -is_staff) %>%
-  arrange(midpoint, is_staff) %>%
-  drop_na() %>%
-  mutate(outcome = case_when(measure == "phq_total" ~ "PHQ-9 total score",
-                             measure == "gad_total" ~ "GAD-7 total score"))
-
-
-# Prepare data on lockdown dates ----------------------------------------------
-
-extra <- uk_lockdown %>%
-  filter(date >= min(plot_data$midpoint, na.rm = TRUE),
-         date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
-  mutate(is_staff = factor("Total"),
-         poly_size = max(plot_data$value, na.rm = TRUE) + 0.5,
-         y = poly_size / 2,
-         height = poly_size)
-
-# Using ggplot to plot the data frame defined above ---------------------------
-
-date_breaks <- ymd(c("2020-04-15",
-                     "2020-08-15",
-                     "2020-12-15",
-                     "2021-04-15"))
-
-p <- ggplot(plot_data,
-            aes(x = midpoint,
-                y = value,
-                group = is_staff,
-                color = is_staff)) +
-  geom_tile(data = extra,
-            aes(y      = y,
-                height = height,
-                x      = date,
-                fill   = in_lockdown),
-            alpha = 0.1,
-            inherit.aes = FALSE) +
-  geom_line() +
-  geom_point() +
-  theme_few(base_family = chosen_font) +
-  scale_color_few() +
-  scale_x_date(breaks = date_breaks,
-               date_labels = "%b\n%Y") +
-  theme(axis.title.x = element_blank(),
-        strip.text = element_text(size = 13)) +
-  scale_fill_manual(values = c("gray95", "gray15"),
-                    labels = c("", "National lockdown")) +
-  labs(y = "Weighted score",
-       color = "Role",
-       fill = "") +
-  facet_wrap(~ outcome, ncol = 1)
-
-ggsave(p,
-       filename = "final_role_plot4.png",
-       dev = "png",
-       dpi = 300,
-       width = 7,
-       height = 6, units = "in")
-
-################################################################################
-################################################################################
-
-#### X% probable depression in April 2020 and X % probable depression in January 2021
-
-#Weighted proportions for gender for gad caseness >= 10
-des_rep <- sel %>%
-  as_survey_design(id = pid, weights = rw)
-
-des_rep %>%
-  mutate(gad_case = gad_total >= 10) %>%
-  group_by(female, gad_case) %>%
-  summarise(prop = survey_prop("ci")) %>%
-  mutate(cell = str_glue("{odp(prop)} [{odp(prop_low)}, {odp(prop_upp)}]"))  %>%
-  select(female, gad_case, cell) %>%
-  spread(gad_case, cell) %>% 
-  select(`TRUE`)
+       width = 9,
+       height = 7,
+       units = "in")
