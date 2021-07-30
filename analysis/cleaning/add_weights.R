@@ -13,12 +13,12 @@ load(here("data", "clean", "weights_comb.Rdata"), verbose = TRUE)
 stopifnot(all(table(unique(sel$pid) %in% weights_comb$pid)))
 
 # Merge weights with longitudinal data
-sel <- full_join(sel, weights_comb, by = c("pid", "dap"))
+sel <- left_join(sel, weights_comb, by = c("pid", "dap"))
 aw <- left_join(aw, weights_comb, by = c("pid", "dap"))
 
 # Merge weights with baseline data
 bl <- full_join(select(bl, -dap),
-                filter(weights_comb, dap == 0), 
+                filter(weights_comb, dap == 0),
                 by = "pid")
 
 # Check: does everyone in the merged dataset have a baseline weight?

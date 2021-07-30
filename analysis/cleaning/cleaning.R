@@ -76,7 +76,8 @@ count(aw, dap) %>% print(n = 100)
 ####                                                                      #####
 ###############################################################################
 
-bl <- filter(aw, dap == 0)
+bl <- filter(aw, dap == 0) %>%
+    mutate(two_month = TRUE)
 
 # Age, gender ------------------------------------------------------------------
 
@@ -384,6 +385,8 @@ repeated <- aw %>% select(pid,
                           starts_with("s_"))
 
 baseline <- bl %>% select(pid,
+                          t,
+                          two_month,
                           midpoint_bl = midpoint,
                           excluded, max_wave,
                           age, female, is_staff, ethnic_f, child6, numchild,
@@ -393,7 +396,7 @@ baseline <- bl %>% select(pid,
                           livalon, renting,
                           role_cat, chronic_any, relat)
 
-sel <- full_join(repeated, baseline, by = "pid")
+sel <- full_join(repeated, baseline, by = c("pid", "two_month", "t"))
 
 # Check analysis dataset is unique by "pid" and "dap"
 dupes <- sel %>%
