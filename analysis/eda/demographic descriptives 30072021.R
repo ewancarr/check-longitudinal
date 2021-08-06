@@ -13,17 +13,30 @@ library(here)
 install.packages("stringr")
 library(stringr)
 
+load("C:/Users/k1928912/OneDrive - King's College London/KCL CHECK longitudinal paper/pseudo_anon (1).Rdata")
+
+
+sel <- sel %>%
+  filter(pid %in% samples$s3)
 
 fu <- filter(sel, dap == 53)
 des <- svydesign(id = ~pid, weights = ~w_comb, data = sel)
-odp <- function(x) {sprintf("%.1f", x) }
+odp <- function(x) {sprintf("%.2f", x) }
 sprintf("%.1f", 22.222)
-round(22.222, 1)
+round(22.222, 2)
+
+
+sel$agecat <- factor(cut(sel$age, 
+                         breaks = c(-Inf, 16, 34, 54, Inf)),
+                     labels = c("16-34", "35-54", "55+"))
 
 #KEY 
 
 des_rep <- sel %>%
-  as_survey_design(id = pid, weights = w_comb)
+  filter(pid %in% samples$s3) %>%  ## newly added
+  as_survey_design(id = pid, weights = w_comb) 
+
+nrow(des_rep)
 
 des_rep %>%
   mutate(gad_case = gad_total >= 10) %>%
@@ -61,6 +74,7 @@ distinct_sel %>%
   count(female)
 
 des_rep <- sel %>%
+  drop_na(female) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -79,6 +93,7 @@ role %>%
   count(bl_staff)
 
 des_rep <- sel %>%
+  drop_na(is_staff) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -101,6 +116,7 @@ distinct_sel %>%
 
 
 des_rep <- sel %>%
+  drop_na(prev_depress) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -123,6 +139,7 @@ distinct_sel %>%
 
 
 des_rep <- sel %>%
+  drop_na(prev_gad) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -146,6 +163,7 @@ distinct_sel %>%
 
 
 des_rep <- sel %>%
+  drop_na(ethnic_f) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -168,6 +186,7 @@ distinct_sel %>%
   count(agecat)
 
 des_rep <- sel %>%
+  drop_na(agecat) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -189,6 +208,7 @@ distinct_sel %>%
   count(livalon)
 
 des_rep <- sel %>%
+  drop_na(livalon) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -210,6 +230,7 @@ distinct_sel %>%
   count(numchild)
 
 des_rep <- sel %>%
+  drop_na(numchild) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
@@ -231,6 +252,7 @@ distinct_sel %>%
   count(kwself_b)
 
 des_rep <- sel %>%
+  drop_na(kwself_b) %>%
   as_survey_design(id = pid, weights = w_comb)
 
 des_rep %>%
