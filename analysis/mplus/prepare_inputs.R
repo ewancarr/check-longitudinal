@@ -16,11 +16,11 @@ load(here("data", "clean", "samples.Rdata"), verbose = TRUE)
 
 # This script prepares Mplus input files for the longitudinal paper. There are
 # three types of models:
-# 
+#
 # 1. Unconditional growth mixture model (GMM)
 # 2. GMM with time-invariant predictors of class membership
 # 3. GMM with time-varying predictors
-# 
+#
 # We're considering both PHQ-9 and GAD-7. The functions below include arguments
 # that allow other options (e.g. cubic or quadratic).
 
@@ -62,10 +62,10 @@ wide_data <- sel %>%
            gad = gad_total,
            phq = phq_total,
            # Time-varying covariates
-           fstv = had_v1, 
+           fstv = had_v1,
            secv = had_v2,       # vaccination (renamed, because Mplus)
            furcu = fur_cu,      # furlough
-           furev = fur_ev,      
+           furev = fur_ev,
            prob = probdef,      # suspected COVID
            stmat = s_material,  # stressors
            stmed = s_medi,
@@ -118,7 +118,7 @@ baseline <- bl %>%
            othercare = othercare == "Yes",
            anychild = parse_number(as.character(nc)) > 0) %>%
     dummy_cols(select_columns = c("relat", "rc", "eth", "nc")) %>%
-    select(-eth, -ethnic_f, -nc, -relat, -rc) 
+    select(-eth, -ethnic_f, -nc, -relat, -rc)
 
 # Check there are no missing values at baseline (there shouldn't be, because
 # we've already selected the sample with complete data).
@@ -143,27 +143,27 @@ wide_data %>%
 
 # Individuals missing information on TVCs are dropped from the analysis in Mplus.
 # However, many of these individuals are also missing the corresponding outcome
-# data. On the Mplus forum[1], Bengt suggests setting missing TVCs to another 
+# data. On the Mplus forum[1], Bengt suggests setting missing TVCs to another
 # values (i.e. besides NA):
-# 
+#
 # > Bengt O. Muthen posted on Saturday, October 19, 2013 - 3:33 pm
 # > Don't use a missing data flag for the time-varying covariates; use some other
 # > number. If the tvs is missing at time t and the outcome at the corresponding
 # > time is missing, such timepoints still won't contribute to the likelihood
 # > computations. By not using a missing data flag, you avoid deleting subjects who
 # > have missing on any tvcs.
-#  
-# > ZHANG Liang posted on Monday, March 09, 2015 - 6:04 am 	
+#
+# > ZHANG Liang posted on Monday, March 09, 2015 - 6:04 am
 # > Then what should I do with the missing values on TVCs? Should I just leave them
 # > as blanks in .dat file while missing values on other variables are represented
 # > as missing data flag?
-#  
-# > Bengt O. Muthen posted on Monday, March 09, 2015 - 6:08 pm 	
+#
+# > Bengt O. Muthen posted on Monday, March 09, 2015 - 6:08 pm
 # > Just use some other value like 888 instead of 999.
-# 
-# So, here I'm setting all TVCs to '777' if the corresponding outcomes are 
+#
+# So, here I'm setting all TVCs to '777' if the corresponding outcomes are
 # both missing (i.e. PHQ and GAD at that timepoint).
-# 
+#
 # [1]: http://www.statmodel.com/discussion/messages/14/3460.html?1555003621
 
 times <- select(wide_data, starts_with("fstv")) %>% names() %>% str_replace("fstv", "")
@@ -173,7 +173,7 @@ stubs <- c("fstv", "secv", "furcu", "furev", "prob", "stmat", "stmed", "stper",
 for (tp in times) {
     for (s in stubs) {
         stp <- paste0(s, tp)
-        wide_data[[stp]] <- ifelse(is.na(wide_data[[paste0("phq", tp)]]) & 
+        wide_data[[stp]] <- ifelse(is.na(wide_data[[paste0("phq", tp)]]) &
                                    is.na(wide_data[[paste0("gad", tp)]]),
                                    777,
                                    wide_data[[stp]])
@@ -190,7 +190,7 @@ prep <- function(dat, stub, p) {
     return(input_file)
 }
 
-input_file <- prep(wide_data,       
+input_file <- prep(wide_data,
                    "check_wide",
                    here("analysis", "mplus", "data"))
 
@@ -231,7 +231,7 @@ make_input <- function(dpath,
         keep(~ str_detect(.x, "[gadphq][0-9]{2}$")) %>%
         map_dbl(parse_number) %>%
         unique() %>%
-        sort() 
+        sort()
     # Get first/last time point
     start <- nth(dap, 1)
     end <- nth(dap, -1)
@@ -241,7 +241,7 @@ make_input <- function(dpath,
     # Define right-hand side of growth curve
     right_side <- str_wrap(str_squish(paste(y, pad(dap), "@.", pad(dap), sep = "", collapse = " ")), 40)
     # Define title
-    title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes") 
+    title <- str_glue("{toupper(model)} model for {toupper(y)}, {classes} classes")
     # Define 'use variables'
     uv <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
     if (tvc[[1]]) {
@@ -251,7 +251,7 @@ make_input <- function(dpath,
     series <- str_glue("{y}{pad(start)}-{y}{pad(end)}")
     # Define STARTS, PROCESSORS, LRT bootstrap
     pr <- str_glue("\n\nPROCESSORS = {proc};\n")
-    st <- ifelse(starts, "\nSTARTS = 500 100;\n", "") 
+    st <- ifelse(starts, "\nSTARTS = 500 100;\n", "")
     lrt <- ifelse(boot, "LRTBOOTSTRAP = 50;", "")
     tech14 = ifelse(boot, "TECH14", "")
     tech11 = ifelse(tech11, "TECH11", "")
@@ -282,8 +282,8 @@ make_input <- function(dpath,
     return(str_glue("
     TITLE: {title}
     DATA: FILE = {dpath};
-    VARIABLE: 
-    {vn} 
+    VARIABLE:
+    {vn}
     USEVARIABLES = {uv};
     CLASSES = C({classes});
     IDVARIABLE = pid;
@@ -359,7 +359,7 @@ set_starts <- function(model) {
 # Pick base models ------------------------------------------------------------
 pick <- comb1 %>%
     # Pick base models
-    keep(~ (.x$y == "gad" & .x$classes == 4) | 
+    keep(~ (.x$y == "gad" & .x$classes == 4) |
            (.x$y == "phq" & .x$classes == 4)) %>%
     map(set_starts)
 names(pick) <- c("gad", "phq")
@@ -380,7 +380,7 @@ unadj <- list(role        = "is_staff",
               rent        = "renting",
               pranx       = "pranx",
               prdep       = "prdep")
-adj <- map(unadj, ~ c("age10", "female", .x)) 
+adj <- map(unadj, ~ c("age10", "female", .x))
 names(adj) <- paste0(names(adj), "_adj")
 opts <- vec_c(unadj, adj)
 opts$age <- "age10"
@@ -410,7 +410,7 @@ write_models(inputs2, target)
 ###############################################################################
 
 # Check: how many of the TVCs have zero variance at each period?
-repmea <- sel %>% 
+repmea <- sel %>%
     ungroup() %>%
     select(dap, pid,
            phq_total, gad_total,
@@ -418,7 +418,7 @@ repmea <- sel %>%
            fur_cu, fur_ev,
            probdef,
            starts_with("s_")) %>%
-    group_by(dap) 
+    group_by(dap)
 
 repmea %>%
     summarise(across(everything(),
@@ -428,7 +428,7 @@ repmea %>%
 # Pick base models ------------------------------------------------------------
 pick <- comb1 %>%
     # Pick base models
-    keep(~ (.x$y == "gad" & .x$classes == 4) | 
+    keep(~ (.x$y == "gad" & .x$classes == 4) |
            (.x$y == "phq" & .x$classes == 4)) %>%
     map(set_starts)
 names(pick) <- c("gad", "phq")
@@ -444,8 +444,8 @@ non_zero <- function(i) {
         filter(v) %>%
         pluck("k")
 }
-# NOTE: the threshold variance of "0.01" above is somewhat arbitrary. We're 
-#       aiming to remove TVCs that have very few 1s -- e.g. at for prob07, 
+# NOTE: the threshold variance of "0.01" above is somewhat arbitrary. We're
+#       aiming to remove TVCs that have very few 1s -- e.g. at for prob07,
 #       just 15 people say yes, vs. 1902 saying no. This causes problems in the
 #       TVC models.
 

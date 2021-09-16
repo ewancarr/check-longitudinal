@@ -330,6 +330,7 @@ aw <- stressors %>%
            s_medi = s_medi_sum_lag) %>%
     right_join(aw, by = c("pid", "t"))
 
+
 # Furlough --------------------------------------------------------------------
 
 fill_lead <- function(d, var) {
