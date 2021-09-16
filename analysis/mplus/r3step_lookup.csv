@@ -1,5 +1,5 @@
 param,rank,label,group
-age10,1,Age,Age and gender
+age10,1,Age (10-year increase),Age and gender
 female,2,Female gender,Age and gender
 eth_white,3,White,Ethnicity
 eth_blac,4,Black,Ethnicity
@@ -9,7 +9,7 @@ eth_othe,7,Other,Ethnicity
 relat_part,8,Partner (Ref.),Relationship status
 relat_si,9,Single,Relationship status
 relat_di,10,Divorced,Relationship status
-chron,10,Yes,Reports chronic condition
+chron,10,Yes,Chronic condition
 livalon,11,Living alone,Living arrangements
 renting,12,Renting,Living arrangements
 rc_acad,13,"Academic, specialist and manag. (Ref.)",Role

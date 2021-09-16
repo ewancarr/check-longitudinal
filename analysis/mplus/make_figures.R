@@ -13,8 +13,7 @@ library(tidytext)
 load(here("analysis", "outputs", "class_summaries.Rdata"), verbose = TRUE)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
-font <- "Franklin Gothic Book"
-
+font <- "Arial"
 
 ###############################################################################
 ####                                                                      #####
@@ -232,6 +231,11 @@ or <- odds_ratios %>%
                              y == "phq" ~ -0.25,
                              TRUE ~ 0))
 
+# # Relabel age to explain 10-year scaling
+# or <- or %>%
+#     mutate(label = fct_expand(label, "Age (10-year increase)"),
+#            label = fct_recode(label, `Age (10-year increase)` = "Age"))
+
 p_r3step <- ggplot(or,
        aes(x = est,
            xmin = lo,
@@ -241,17 +245,18 @@ p_r3step <- ggplot(or,
            color = y)) +
     geom_vline(xintercept = 1, color = "red", alpha = 0.1) +
     geom_point(aes(color = refcat),
-                    size = 1.6,
+                    size = 1.7,
                     position = position_dodge(width = 0.6)) +
+    scale_x_continuous(trans = 'log10') +
+    coord_cartesian(xlim = c(0.1, 11)) +
     geom_linerange(aes(color = refcat),
-                    size = 0.7,
+                    size = 0.9,
                     position = position_dodge(width = 0.6)) +
     facet_grid(rows = vars(group),
                cols = vars(class_lab),
-               scale = "free",
+               scale = "free_y",
                space = "free_y",
                switch = "y") +
-    coord_cartesian(xlim = c(0, 7)) +
     scale_y_reordered() +
     scale_color_manual(values = c("#FAA43A", "#5DA5DA", "#cccccc"),
                        labels = c("GAD-7", "PHQ-9"),
@@ -259,26 +264,25 @@ p_r3step <- ggplot(or,
     theme_few(base_family = font) +
     theme(strip.text.y.left = element_text(angle = 0,
                                            hjust = 1,
-                                           color = "gray60"),
+                                           color = "gray40"),
           plot.title.position = "plot",
           axis.title.y = element_blank(),
           axis.text.y = element_text(color = "black"),
+          axis.title.x = element_text(size = 10,
+                                      margin = margin(10, 0, 0, 0, "pt")),
           strip.placement = "outside",
+          strip.text = element_text(size = 10),
           legend.justification = "right",
-          legend.direction = "horizontal",
-          legend.position      = c(0.99, 1.12),
+          legend.direction     = "horizontal",
+          # legend.position      = c(0.99, 1.12),
           legend.key.size      = unit(0.5, "cm"),
           legend.text          = element_text(size = 10),
           legend.title         = element_blank(),
           legend.margin        = margin(0, 0, 5, 0, "pt")) +
-    labs(title = paste0("Associations of baseline variables with trajectory ",
-                        "class assignment"),
-         subtitle = "Reference class is 'low severity'.",
-         x = "Odds ratio (95% confidence interval)",
+    guides(color = guide_legend(nrow = 2)) +
+    labs(x = "Odds ratio on logarithmic scale (95% confidence interval)",
          caption = "Notes.",
          color = "Outcome")
-
-
 # Save ------------------------------------------------------------------------
 ggsave(p_r3step,
        file = here("analysis", "figures", "r3step.png"),
@@ -288,12 +292,32 @@ ggsave(p_r3step,
        height = 8,
        units = "in")
 
+# Make table ------------------------------------------------------------------
 
+tdp <- function(x) {
+    sprintf("%.2f", as.numeric(x))
+}
+
+or_tab <- or %>%
+    mutate(cell = str_glue("{est} [{lo}, {hi}]")) %>%
+    select(-est, -lo, -hi, -class_lab) %>%
+    spread(new_class, cell) %>%
+    arrange(y, rank) %>%
+    mutate(y = if_else(y == "gad",
+                       "Anxiety (GAD-7)",
+                       "Depression (PHQ-9)")) %>%
+    select(y, group, label, `1`, `2`, `3`) %>%
+    mutate(across(c(y, group),
+                  ~ if_else(lag(.x) == .x & !is.na(lag(.x)),
+                            "",
+                            as.character(.x))))
+
+write_csv(or_tab, "~/or_tab.csv")
 
 
 ###############################################################################
 ####                                                                      #####
-####                                TVCOVs                                #####
+####                                 TVCs                                 #####
 ####                                                                      #####
 ###############################################################################
 
