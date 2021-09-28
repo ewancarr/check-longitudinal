@@ -11,7 +11,7 @@ library(colorspace)
 library(extrafont)
 library(patchwork)
 library(srvyr)
-chosen_font <- "Franklin Gothic Book"
+chosen_font <- "Arial"
 load(here("data", "clean", "pseudo_anon.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
 
@@ -21,8 +21,7 @@ load(here("data", "clean", "samples.Rdata"), verbose = TRUE)
 sel <- sel %>%
     filter(pid %in% samples$s3)
 
-# Recode age/gender; select first non-missing value ---------------------------
-
+# Recode age/gender; select first non-missing value per person ----------------
 sel$agecat <- factor(cut(sel$age, 
                          breaks = c(-Inf, 16, 34, 54, Inf)),
                      labels = c("16-34", "35-54", "55+"))
@@ -30,10 +29,10 @@ sel$agecat <- factor(cut(sel$age,
 sel$female <- ifelse(sel$female, "Female", "Male")
 
 sel <- sel %>%
-  mutate(across(c(female, agecat), ~ first(na.omit(.x))))
+    group_by(pid) %>%
+    mutate(across(c(female, agecat), ~ first(na.omit(.x))))
 
 # Add a copy of the dataset to represent 'Total' category ---------------------
-
 sel <- select(sel,
               pid, w_comb, gad_total, phq_total, midpoint, agecat, female)
 
@@ -73,10 +72,10 @@ prepare_data <- function(sel, lockdown, var) {
     lock <- lockdown %>%
       mutate(date = ymd(date)) %>%
       select(date, in_lockdown) %>%
-      filter(date >= min(plot_data$midpoint, na.rm = TRUE),
-             date <= max(plot_data$midpoint, na.rm = TRUE)) %>%
+      filter(date >= min(dat$midpoint, na.rm = TRUE),
+             date <= max(dat$midpoint, na.rm = TRUE)) %>%
       mutate({{var}} := factor("Total"),
-             poly_size = max(plot_data$value, na.rm = TRUE) + 0.5,
+             poly_size = max(dat$value, na.rm = TRUE) + 0.5,
              y = poly_size / 2,
              height = poly_size)
 
@@ -121,8 +120,8 @@ make_the_plot <- function(sel, lock, var) {
             strip.text = element_text(size = 13),
             strip.background = element_blank(),
             legend.title = element_blank(),
-            legend.key.height = unit(0.3, "cm"),
-            legend.position = c(0.87, 1.1),
+            legend.key.height = unit(0.4, "cm"),
+            legend.position = c(0.88, 1.1),
             plot.margin = unit(c(0, 0.2, 0.2, 0.2), "cm")) +
       scale_fill_manual(values = c("gray95", "gray15"),
                         labels = c("", "National lockdown")) +
@@ -144,17 +143,23 @@ add_label <- function(ypos, lab) {
                  color = "gray50")
 }
 
+# Pick some colours for the lines
+plot_colors <- few_pal(palette = "Dark")(8)
+
 # Make plot for age
 p_left <- make_the_plot(sel, uk_lockdown, agecat) +
         labs(y = "Weighted total score",
              title = "By age") +
         add_label(3.75, "None") +
-        add_label(4.25, "Mild symptoms")
+        add_label(4.25, "Mild symptoms") +
+        scale_color_manual(values = c(plot_colors[c(8, 3, 6)], "gray60"))
+p_left
 
 # Make plot for gender
 p_right <- make_the_plot(sel, uk_lockdown, female) +
       labs(title = "By gender") +
-      theme(axis.title.y = element_blank())
+      theme(axis.title.y = element_blank()) +
+      scale_color_manual(values = c(plot_colors[c(1, 4)], "gray60"))
 
 # Combine into a single figure
 cap <- str_squish("Notes. Shaded grey regions indicate periods of national
