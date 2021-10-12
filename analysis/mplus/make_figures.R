@@ -127,6 +127,7 @@ draw_traj <- function(class_data,
     # Adjust theming
     p <- p + theme_few(base_family = font) +
         theme(axis.title.x = element_blank(),
+              axis.text = element_text(size = 11),
               legend.justification = "right",
               legend.position = c(0.99, 1.05),
               legend.key.size = unit(0.5, "cm"),
@@ -171,13 +172,20 @@ p_phq <- draw_traj(class_summaries, uk_lockdown, "phq", 4, font) +
 samp <- sum(class_size[class_size$nclasses == 4 &
                        class_size$y == "gad", ]$count)
 tit <- str_glue("Trajectory plots for 4-class GMM models (n={samp})")
-cap <- "Notes. Explain lockdown indicator/source. Explain dots vs. lines."
+
+cap <- "Notes. Lines represent model estimated values; points represent observed data. Shaded regions indicate periods of lockdown based on the Covid-19 Government Response Tracker (OxCGRT), defined as days where there was a national requirement to stay at home."
 
 p_comb <- p_gad / p_phq +
-    plot_annotation(# title = tit,
-                    caption = cap,
-                    theme = theme(title = element_text(family = font,
-                                                       size = 14)))
+    plot_annotation(
+       caption = str_wrap(cap, 120),
+       theme = theme(title = element_text(family = font,
+                                          size = 15),
+                     plot.caption = element_text(color = "gray40",
+                                                 size   = 10,
+                                                 hjust  = 0,
+                                                 margin = margin(15, 0, 0, 0,
+                                                                 unit = "pt")))
+    )
 
 # Save ------------------------------------------------------------------------
 ggsave(p_comb,
@@ -268,10 +276,9 @@ p_r3step <- ggplot(or,
           plot.title.position = "plot",
           axis.title.y = element_blank(),
           axis.text.y = element_text(color = "black"),
-          axis.title.x = element_text(size = 10,
-                                      margin = margin(10, 0, 0, 0, "pt")),
+          axis.title.x = element_text(margin = margin(10, 0, 0, 0, "pt")),
           strip.placement = "outside",
-          strip.text = element_text(size = 10),
+          strip.text = element_text(size = 11),
           legend.justification = "right",
           legend.direction     = "horizontal",
           # legend.position      = c(0.99, 1.12),
@@ -283,10 +290,11 @@ p_r3step <- ggplot(or,
     labs(x = "Odds ratio on logarithmic scale (95% confidence interval)",
          caption = "Notes.",
          color = "Outcome")
+
 # Save ------------------------------------------------------------------------
 ggsave(p_r3step,
        file = here("analysis", "figures", "r3step.png"),
-       dpi = 600,
+       dpi = 1200,
        device = "png",
        width = 10,
        height = 8,

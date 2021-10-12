@@ -22,7 +22,7 @@ sel <- sel %>%
     filter(pid %in% samples$s3)
 
 # Recode age/gender; select first non-missing value per person ----------------
-sel$agecat <- factor(cut(sel$age, 
+sel$agecat <- factor(cut(sel$age,
                          breaks = c(-Inf, 16, 34, 54, Inf)),
                      labels = c("16-34", "35-54", "55+"))
 
@@ -97,10 +97,10 @@ make_the_plot <- function(sel, lock, var) {
                     group = byvar,
                     color = byvar)) +
       geom_tile(data = d$lockdown,
-                aes(y      = y,
+                aes(y = y,
                     height = height,
-                    x      = date,
-                    fill   = in_lockdown),
+                    x = date,
+                    fill = in_lockdown),
                 alpha = 0.1,
                 inherit.aes = FALSE) +
       geom_line(size = 0.8) +
@@ -116,13 +116,13 @@ make_the_plot <- function(sel, lock, var) {
                    date_labels = "%b\n%Y") +
       theme(axis.title.x = element_blank(),
             plot.title = element_text(face = "bold",
-                                      margin = margin(1, 0, 0, 0, "cm")),
+                                      margin = margin(0.8, 0, 0.2, 0, "cm")),
             strip.text = element_text(size = 13),
             strip.background = element_blank(),
             legend.title = element_blank(),
             legend.key.height = unit(0.4, "cm"),
-            legend.position = c(0.88, 1.1),
-            plot.margin = unit(c(0, 0.2, 0.2, 0.2), "cm")) +
+            legend.position = c(0.90, 1.15),
+            plot.margin = unit(c(0.5, 0.2, 0.2, 0.2), "cm")) +
       scale_fill_manual(values = c("gray95", "gray15"),
                         labels = c("", "National lockdown")) +
       facet_wrap(~ outcome, ncol = 1) +
@@ -153,7 +153,6 @@ p_left <- make_the_plot(sel, uk_lockdown, agecat) +
         add_label(3.75, "None") +
         add_label(4.25, "Mild symptoms") +
         scale_color_manual(values = c(plot_colors[c(8, 3, 6)], "gray60"))
-p_left
 
 # Make plot for gender
 p_right <- make_the_plot(sel, uk_lockdown, female) +
@@ -163,20 +162,25 @@ p_right <- make_the_plot(sel, uk_lockdown, female) +
 
 # Combine into a single figure
 cap <- str_squish("Notes. Shaded grey regions indicate periods of national
-                  lockdown, as measured by the Oxford Covid-19 Government 
-                  Response Tracker (OxCGRT).")
+                  lockdown based on the Oxford Covid-19 Government
+                  Response Tracker.")
 
-p_final <- p_left + p_right + 
-    plot_annotation(caption = cap,
+p_final <- p_left + p_right +
+    plot_annotation(caption = str_wrap(cap, 130),
                     theme = theme(
-                                  plot.caption = element_text(family = chosen_font)
-                    )
-    )
+        plot.caption = element_text(color = "gray50",
+                                    family = font,
+                                    size   = 10,
+                                    hjust  = 0,
+                                    margin = margin(15, 0, 0, 0,
+                                                    unit = "pt"))
+        )
+)
 
 ggsave(p_final,
        filename = here("analysis", "figures", "desc.png"),
        dev = "png",
-       dpi = 300,
-       width = 9,
+       dpi = 1200,
+       width = 8.5,
        height = 7,
        units = "in")
