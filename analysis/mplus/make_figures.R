@@ -278,17 +278,16 @@ p_r3step <- ggplot(or,
           axis.text.y = element_text(color = "black"),
           axis.title.x = element_text(margin = margin(10, 0, 0, 0, "pt")),
           strip.placement = "outside",
-          strip.text = element_text(size = 11),
+          strip.text = element_text(size = 10),
           legend.justification = "right",
           legend.direction     = "horizontal",
-          # legend.position      = c(0.99, 1.12),
+          legend.position      = "top",
           legend.key.size      = unit(0.5, "cm"),
-          legend.text          = element_text(size = 10),
+          legend.text          = element_text(size = 12),
           legend.title         = element_blank(),
-          legend.margin        = margin(0, 0, 5, 0, "pt")) +
+          legend.margin        = margin(0, 0.5, 0, 0, "cm")) +
     guides(color = guide_legend(nrow = 2)) +
     labs(x = "Odds ratio on logarithmic scale (95% confidence interval)",
-         caption = "Notes.",
          color = "Outcome")
 
 # Save ------------------------------------------------------------------------
@@ -296,7 +295,7 @@ ggsave(p_r3step,
        file = here("analysis", "figures", "r3step.png"),
        dpi = 1200,
        device = "png",
-       width = 10,
+       width = 9,
        height = 8,
        units = "in")
 
@@ -307,7 +306,7 @@ tdp <- function(x) {
 }
 
 or_tab <- or %>%
-    mutate(cell = str_glue("{est} [{lo}, {hi}]")) %>%
+    mutate(cell = str_glue("{tdp(est)} [{tdp(lo)}, {tdp(hi)}]")) %>%
     select(-est, -lo, -hi, -class_lab) %>%
     spread(new_class, cell) %>%
     arrange(y, rank) %>%
@@ -321,7 +320,6 @@ or_tab <- or %>%
                             as.character(.x))))
 
 write_csv(or_tab, "~/or_tab.csv")
-
 
 ###############################################################################
 ####                                                                      #####
