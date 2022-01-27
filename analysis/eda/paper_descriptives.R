@@ -30,8 +30,7 @@ schedule <- full_join(left, right) %>%
     filter(dt < ymd(latest_extract)) 
 
 # Number of questionnaires
-schedule %>%
-    count(type)
+schedule %>% count(type)
 
 range(schedule$dt)
 
@@ -149,6 +148,7 @@ p <- plot_data %>%
         axis.text = element_text(size = 11),
         axis.title = element_text(size = 12)) +
   labs(y = "Weeks since baseline")
+
 ggsave(p, 
        filename = here("analysis", "figures", "time_variance.png"),
        width = 8,
@@ -157,6 +157,59 @@ ggsave(p,
        dev = "png")
 
 
-  summarise(mid = median(end_date),
-            low = min(end_date),
-            high = max(end_date))
+# How many PGR students had left KCL during the fieldwork period? -------------
+
+no_longer  <- "I no longer work or study at King's College London"
+left_kcl <- aw %>%
+  filter(pid %in% incl$pid) %>%
+  select(pid, t, role) %>%
+  arrange(pid, t) %>%
+  group_by(pid) %>%
+  mutate(left_kcl = ifelse(role == no_longer, t, NA)) %>% 
+  summarise(first_left = min(left_kcl, na.rm = TRUE),
+            role = first(na.omit(role))) %>%
+  mutate(first_left = if_else(first_left == Inf, -1, first_left)) %>%
+  group_by(role, first_left) %>%
+  summarise(n = n()) %>%
+  mutate(total = sum(n),
+         pct = round(100 * (n/total))) 
+print(left_kcl)
+
+sel %>% ungroup() %>% distinct(t, dap) %>% arrange(t, dap) %>% print(n = 30)
+
+p_reviewer <- left_kcl %>%
+  filter(!str_detect(role, "staff"),
+         first_left > 0) %>%
+  left_join(distinct(ungroup(sel), t, dap), by = c("first_left" = "t")) %>%
+  ungroup() %>%
+  complete(dap = 0:52) %>%
+  ggplot(aes(x = dap, y = n)) +
+  geom_col() +
+  geom_text(aes(label = n, y = n + 14)) +
+  geom_segment(aes(y = (403 - 24),
+                   yend = (403 - 24),
+                   x = 0,
+                   xend = 50),
+               color = "darkgreen") +
+  annotate("text", x = 0, y = 399, 
+           hjust = "left",
+           label = "Number of PGR students remaining at KCL during fieldwork period = 379",
+           size = 5, colour = "darkgreen") + 
+  ylim(0, 410) +
+  xlim(0, 50) +
+  labs(x = "Weeks since baseline survey",
+       y = "Number of PGR students leaving KCL")
+ggsave(p_reviewer, filename = here("analysis", "figures", "fig_reviewer.png"),
+       dev = "png",
+       width = 8,
+       height = 4,
+       dpi = 300)
+
+# So, of PGR students, 14 left before t=20 (week 41)
+5 + 1 + 4 + 4
+
+# A further 10 left on or around the end of the fieldwork period (week 49)
+4 + 6
+
+
+
