@@ -20,9 +20,7 @@ r3step gad_kw.inp
 r3step gad_kw_adj.inp
 r3step gad_livalon.inp
 r3step gad_livalon_adj.inp
-r3step gad_pranx.inp
 r3step gad_pranx_adj.inp
-r3step gad_prdep.inp
 r3step gad_prdep_adj.inp
 r3step gad_relat.inp
 r3step gad_relat_adj.inp
@@ -53,9 +51,7 @@ r3step phq_kw.inp
 r3step phq_kw_adj.inp
 r3step phq_livalon.inp
 r3step phq_livalon_adj.inp
-r3step phq_pranx.inp
 r3step phq_pranx_adj.inp
-r3step phq_prdep.inp
 r3step phq_prdep_adj.inp
 r3step phq_relat.inp
 r3step phq_relat_adj.inp

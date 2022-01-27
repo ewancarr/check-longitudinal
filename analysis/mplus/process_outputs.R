@@ -47,7 +47,8 @@ get_filename <- function(path) {
 ####                                                                      #####
 ###############################################################################
 
-current <- "2021-06-01 Remove sparse TVCs"
+current <- "2022-01-13 Update R3STEP to adjust for prior mental health"
+# current <- "2021-06-01 Remove sparse TVCs"
 p <- here("analysis", "mplus", "saved_fits", current)
 
 # Check: are any output files missing? ----------------------------------------
@@ -76,7 +77,6 @@ times <- parse_number(grep("^gad[0-9]+",
                            str_split(paste(inp[start:end],
                                            collapse = " "), " ")[[1]],
                            value = TRUE))
-
 fits <- map2(fits, names(fits),
      function(res, path) {
          try(res$gh5 <- extract_plot_data(path_ext_set(path, "gh5"), times),
@@ -128,6 +128,7 @@ pick <- function(fits, term) {
 get_id <- function(d) {
     separate(d, model_id, c("model", "y", "nclasses", "form"))
 }
+
 gmm <- pick(fits, "^gmm")
 
 # Extract fit statistics ------------------------------------------------------
@@ -207,7 +208,10 @@ odds_ratios <- map(r3step, "r3step") %>%
     # Switch reference class to be consistent
     left_join(rename(lu,
                      orig_ref = orig_class,
-                     new_ref = new_class))
+                     new_ref = new_class)) %>%
+    # Remove coefficients for pranx/prdep if used as adjustments
+    filter(!(param %in% c("pranx", "prdep") & 
+             (!str_detect(model_id, "pranx|prdep"))))
 
 ###############################################################################
 ####                                                                      #####

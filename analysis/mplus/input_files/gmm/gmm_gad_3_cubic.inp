@@ -1,6 +1,6 @@
 TITLE: GMM model for GAD, 3 classes
 DATA: FILE = ../../data/check_wide.dat;
-VARIABLE: 
+VARIABLE:
 NAMES = pid w_bl fstv00 fstv03 fstv05
 fstv07 fstv09 fstv11 fstv13 fstv15
 fstv17 fstv19 fstv21 fstv23 fstv25
@@ -66,7 +66,7 @@ renting anychild relat_sing relat_part
 relat_divo rc_acad rc_rsch rc_teac
 rc_pgrs rc_Missing eth_asian eth_black
 eth_mixed eth_other eth_white nc_0 nc_1
-nc_2 nc_3; 
+nc_2 nc_3;
 USEVARIABLES = gad00-gad53;
 CLASSES = C(3);
 IDVARIABLE = pid;

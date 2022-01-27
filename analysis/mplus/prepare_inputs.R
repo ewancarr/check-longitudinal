@@ -353,6 +353,7 @@ set_starts <- function(model) {
     model$starts <- FALSE
     model$boot <- FALSE
     model$tech11 <- FALSE
+    model$proc <- 20
     return(model)
 }
 
@@ -377,10 +378,11 @@ unadj <- list(role        = "is_staff",
               shield_only = "shonly",
               kw          = "kw",
               livalon     = "livalon",
-              rent        = "renting",
-              pranx       = "pranx",
-              prdep       = "prdep")
-adj <- map(unadj, ~ c("age10", "female", .x))
+              rent        = "renting")
+adj <- map(unadj, ~ c("age10", "female", "pranx", "prdep", .x))
+# NOTE: we're now adjusting for 'pranx' and 'prdep' in all models.
+adj$pranx <- c("age10", "female", "pranx")
+adj$prdep <- c("age10", "female", "prdep")
 names(adj) <- paste0(names(adj), "_adj")
 opts <- vec_c(unadj, adj)
 opts$age <- "age10"
