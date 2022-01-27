@@ -233,7 +233,7 @@ or <- odds_ratios %>%
            across(c(est, lo, hi), ~ replace_na(as.numeric(.x), 1)),
            class_lab = case_when(
                 new_class == 1 ~ "Class 1\n'Persistent high severity'",
-                new_class == 2 ~ "Class 2\n'Against cases'",
+                new_class == 2 ~ "Class 2\n'Opposing cases'",
                 new_class == 3 ~ "Class 3\n'With cases'"),
            nudge = case_when(y == "gad" ~ 0.25,
                              y == "phq" ~ -0.25,
@@ -320,6 +320,50 @@ or_tab <- or %>%
                             as.character(.x))))
 
 write_csv(or_tab, "~/or_tab.csv")
+
+# Make table with multiple reference classes, per reviewer request ------------
+
+# Key
+# new_class == 1 ~ "Class 1 'Persistent high severity'
+# new_class == 2 ~ "Class 2 'Against cases'
+# new_class == 3 ~ "Class 3 'With cases'
+# new_class == 4 ~ "Class 4 'Persistent low severity'
+
+or_multiple <- odds_ratios %>%
+
+lookup_all <- cross_df(list(y = c("gad", "phq"),
+                            new_class = 1:4,
+                            new_ref = 1:4)) %>%
+  filter(new_class != new_ref) %>%
+  crossing(lookup)
+
+odds_ratios %>%
+    filter(# Remove coefficients we can't/won't plot
+           str_detect(model_id, "_age$|_sex$|_ethnicity$", negate = TRUE),
+           !(param %in% c("shield_i", "is_staff")),
+           # Remove duplicated 'age' and 'sex' rows
+           (!(str_detect(model_id, "_agesex$", negate = TRUE) &
+              param %in% c("age", "female", "age10"))),
+           (adj == "adj" | str_detect(model_id, "_agesex$"))) %>%
+    select(y, new_ref, new_class, param, est, lo = low025, hi = up025) %>%
+    full_join(lookup_all) %>% 
+    mutate(cell = str_glue("{tdp(est)} [{tdp(lo)}, {tdp(hi)}]")) %>%
+    pivot_wider(id_cols = c(y, group, rank, label),
+                names_from = c(new_ref, new_class),
+                names_sort = TRUE,
+                values_from = c(cell)) %>%
+    arrange(y, rank) %>%
+    write_csv("~/or_multiple.csv")
+
+    mutate(refcat = if_else(is.na(est), "ref", y),
+           across(c(est, lo, hi), ~ replace_na(as.numeric(.x), 1)),
+           class_lab = case_when(
+                new_class == 1 ~ "Class 1\n'Persistent high severity'",
+                new_class == 2 ~ "Class 2\n'Opposing cases'",
+                new_class == 3 ~ "Class 3\n'With cases'"),
+           nudge = case_when(y == "gad" ~ 0.25,
+                             y == "phq" ~ -0.25,
+                             TRUE ~ 0))
 
 ###############################################################################
 ####                                                                      #####

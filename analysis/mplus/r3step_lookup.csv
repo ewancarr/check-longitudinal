@@ -6,9 +6,9 @@ eth_blac,4,Black,Ethnicity
 eth_asia,5,Asian,Ethnicity
 eth_mixe,6,Mixed,Ethnicity
 eth_othe,7,Other,Ethnicity
-relat_part,8,Partner (Ref.),Relationship status
-relat_si,9,Single,Relationship status
-relat_di,10,Divorced,Relationship status
+relat_part,8,Partner (Ref.),Partnership status
+relat_si,9,Single,Partnership status
+relat_di,10,Divorced,Partnership status
 chron,10,Yes,Chronic condition
 livalon,11,Living alone,Living arrangements
 renting,12,Renting,Living arrangements
