@@ -2,6 +2,7 @@
 *.dat
 *.ipynb_checkpoints
 *.simg
+*.gh5
 .directory
 .here
 data/**
