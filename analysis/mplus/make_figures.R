@@ -43,7 +43,6 @@ table_s2 <- fit_stat %>%
 
 write_csv(table_s2, "~/table_s2.csv")
 
-
 ###############################################################################
 ####                                                                      #####
 ####                           TRAJECTORY PLOTS                           #####
@@ -177,7 +176,6 @@ cap <- "Notes. Lines represent model estimated values; points represent observed
 
 p_comb <- p_gad / p_phq +
     plot_annotation(
-       caption = str_wrap(cap, 120),
        theme = theme(title = element_text(family = font,
                                           size = 15),
                      plot.caption = element_text(color = "gray40",
@@ -189,13 +187,20 @@ p_comb <- p_gad / p_phq +
 
 # Save ------------------------------------------------------------------------
 ggsave(p_comb,
-       file = here("analysis", "figures", "traj.png"),
+       file = here("analysis", "figures", "figure2_trajectories_1200dpi.png"),
        dpi = 1200,
        device = "png",
        width = 8,
        height = 10,
        units = "in")
 
+ggsave(p_comb,
+       file = here("analysis", "figures", "figure2_trajectories_300dpi.png"),
+       dpi = 300,
+       device = "png",
+       width = 8,
+       height = 10,
+       units = "in")
 
 ###############################################################################
 ####                                                                      #####
@@ -292,8 +297,16 @@ p_r3step <- ggplot(or,
 
 # Save ------------------------------------------------------------------------
 ggsave(p_r3step,
-       file = here("analysis", "figures", "r3step.png"),
+       file = here("analysis", "figures", "figure3_r3step_1200dpi.png"),
        dpi = 1200,
+       device = "png",
+       width = 9,
+       height = 8,
+       units = "in")
+
+ggsave(p_r3step,
+       file = here("analysis", "figures", "figure3_r3step_300dpi.png"),
+       dpi = 300,
        device = "png",
        width = 9,
        height = 8,

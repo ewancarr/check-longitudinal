@@ -166,8 +166,7 @@ cap <- str_squish("Notes. Shaded grey regions indicate periods of national
                   Response Tracker.")
 
 p_final <- p_left + p_right +
-    plot_annotation(caption = str_wrap(cap, 130),
-                    theme = theme(
+    plot_annotation(theme = theme(
         plot.caption = element_text(color = "gray50",
                                     family = font,
                                     size   = 10,
@@ -177,8 +176,17 @@ p_final <- p_left + p_right +
         )
 )
 
+
 ggsave(p_final,
-       filename = here("analysis", "figures", "desc.png"),
+       filename = here("analysis", "figures", "figure1_300dpi.png"),
+       dev = "png",
+       dpi = 300,
+       width = 8.5,
+       height = 7,
+       units = "in")
+
+ggsave(p_final,
+       filename = here("analysis", "figures", "figure1_1200dpi"),
        dev = "png",
        dpi = 1200,
        width = 8.5,
