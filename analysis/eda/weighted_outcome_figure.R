@@ -178,7 +178,7 @@ p_final <- p_left + p_right +
 
 
 ggsave(p_final,
-       filename = here("analysis", "figures", "figure1_300dpi.png"),
+       filename = here("analysis", "figures", "figure1_means_300dpi.png"),
        dev = "png",
        dpi = 300,
        width = 8.5,
@@ -186,7 +186,7 @@ ggsave(p_final,
        units = "in")
 
 ggsave(p_final,
-       filename = here("analysis", "figures", "figure1_1200dpi"),
+       filename = here("analysis", "figures", "figure1_means_1200dpi"),
        dev = "png",
        dpi = 1200,
        width = 8.5,
