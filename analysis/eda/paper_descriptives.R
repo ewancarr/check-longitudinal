@@ -212,4 +212,45 @@ ggsave(p_reviewer, filename = here("analysis", "figures", "fig_reviewer.png"),
 4 + 6
 
 
+# How many PGR/staff had left KCL during the fieldwork period? ----------------
 
+no_longer  <- "I no longer work or study at King's College London"
+left_kcl <- aw %>%
+  left_join(select(sel, pid, t, dap, phq_total)) %>%
+  filter(pid %in% incl$pid) %>%
+  select(pid, dap, role, phq_total) %>%
+  arrange(pid, dap) 
+
+resp_type <- left_kcl %>%
+  group_by(pid) %>%
+  mutate(is_staff = first(na.omit(str_detect(role, "member of staff"))),
+         left_kcl = ifelse(role == no_longer, dap, NA),
+         first_left = min(left_kcl, na.rm = TRUE),
+         resp_type = case_when(
+    (!is.na(phq_total)) & (dap <= first_left) ~ "Responded, current staff/PGR",
+    (!is.na(phq_total)) & (dap > first_left) ~ "Responded, after leaving KCL",
+    is.na(phq_total) ~ "Did not respond"))
+
+
+# Number of PARTICIPANTS who left KCL during fieldwork
+n_part <- resp_type %>%
+  mutate(first_left = ifelse(first_left == Inf, NA, first_left)) %>%
+  summarise(across(c(is_staff, first_left), ~ first(na.omit(.x)))) %>%
+  count(is_staff, first_left)
+print(n_part)
+
+n_part %>%
+  mutate(ever_left = !is.na(first_left)) %>%
+  group_by(is_staff, ever_left) %>%
+  summarise(n = sum(n)) %>%
+  mutate(total = sum(n),
+         pct = n / total)
+
+# Number of OBSERVATIONS collected after participant has left KCL
+resp_type %>%
+  ungroup() %>%
+  count(is_staff, resp_type) %>%
+  group_by(is_staff) %>%
+  filter(resp_type != "Did not respond") %>%
+  mutate(total = sum(n),
+         pct = n / total)
