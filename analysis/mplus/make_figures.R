@@ -6,14 +6,19 @@ renv::load()
 library(tidyverse)
 library(here)
 library(ggthemes)
-library(extrafont)
+library(showtext)
 library(lubridate)
 library(patchwork)
 library(tidytext)
 load(here("analysis", "outputs", "class_summaries.Rdata"), verbose = TRUE)
 load(here("data", "clean", "check.Rdata"), verbose = TRUE)
 load(here("data", "clean", "contextual", "uk_lockdown.Rdata"), verbose = TRUE)
-font <- "Arial"
+font_add("frutiger", 
+         regular = here("reference", "FrutigerLTStd-Cn.otf"),
+         bold = here("reference", "FrutigerLTStd-BoldCn.otf"))
+font <- "frutiger"
+showtext_auto()
+op = showtext.opts(dpi = 600)
 
 ###############################################################################
 ####                                                                      #####
@@ -59,7 +64,8 @@ uk_lockdown <- uk_lockdown %>%
 # GMM trajectory plots --------------------------------------------------------
 
 make_class_label <- function(class_f, count, proportion) {
-    first(str_glue("{class_f} (n={count}; {round(100 * proportion)}%)"))
+    line_break <- if_else(as.numeric(class_f) >= 3, "\n", " ")
+    first(str_glue("{class_f}{line_break}(n={count}; {round(100 * proportion)}%)"))
 }
 
 draw_traj <- function(class_data,
@@ -67,7 +73,6 @@ draw_traj <- function(class_data,
                       outcome = "gad",
                       classes = 4,
                       font = "Georgia") {
-
     # Prepare plot data
     plot_data <- class_data %>%
         filter(y == outcome,
@@ -86,9 +91,12 @@ draw_traj <- function(class_data,
     plot_labels <- plot_data %>%
         left_join(class_size) %>%
         group_by(class_f) %>%
-        summarise(last_date = max(date),
-                  last_y = last(est),
-                  class_label = make_class_label(class_f, count, proportion))
+        summarise(last_y = last(est),
+                  class_label = make_class_label(class_f,
+                                                 count,
+                                                 proportion)) %>%
+        mutate(last_date = ymd("2021-04-15"),
+               last_y = if_else(as.numeric(class_f) >= 3, last_y - 0.57, last_y))
 
     date_breaks <- ymd(c("2020-04-15",
                          "2020-08-15",
@@ -101,10 +109,10 @@ draw_traj <- function(class_data,
                    colour = class_f,
                    group = class_f)) +
         geom_tile(data = extra,
-                  aes(y      = y,
+                  aes(y = y,
                       height = height,
-                      x      = date,
-                      fill   = in_lockdown),
+                      x = date,
+                      fill = in_lockdown),
                   alpha = 0.1,
                   inherit.aes = FALSE) +
         geom_line(aes(y = est),
@@ -117,26 +125,27 @@ draw_traj <- function(class_data,
                    alpha = 0.2) +
         geom_text(data = plot_labels,
                   family = font,
-                  size = 4,
-                  aes(x = last_date,
+                  size = 3.5,
+                  hjust = 0,
+                  aes(x = ymd("2021-02-01"),
                       y = last_y,
                       label = class_label),
-                  nudge_x = 70)
+                  nudge_x = 90)
 
     # Adjust theming
     p <- p + theme_few(base_family = font) +
         theme(axis.title.x = element_blank(),
-              axis.text = element_text(size = 11),
+              axis.text = element_text(size = 10),
               legend.justification = "right",
               legend.position = c(0.99, 1.05),
               legend.key.size = unit(0.5, "cm"),
-              legend.text = element_text(size = 12),
+              legend.text = element_text(size = 11),
               legend.title = element_blank(),
               legend.margin = margin(0, 0, 5, 0, "pt"),
               plot.title = element_text(margin = margin(0, 0, 8, 0,
                                                         unit = "pt")),
               plot.caption = element_text(color = "gray50",
-                                          size   = 10,
+                                          size   = 11,
                                           hjust  = 0,
                                           margin = margin(15, 0, 0, 0,
                                                           unit = "pt"))) +
@@ -157,12 +166,12 @@ draw_traj <- function(class_data,
 # GAD-7, 4 classes ------------------------------------------------------------
 
 p_gad <- draw_traj(class_summaries, uk_lockdown, "gad", 4, font) +
-    labs(title = "A. GAD-7",
+    labs(title = "A) GAD-7",
          y = "GAD-7 total score")
 
 # PHQ-9, 4 classes ------------------------------------------------------------
 p_phq <- draw_traj(class_summaries, uk_lockdown, "phq", 4, font) +
-    labs(title = "B. PHQ-9",
+    labs(title = "B) PHQ-9",
          y = "PHQ-9 total score") +
     theme(legend.position = "none")
 
@@ -186,24 +195,21 @@ p_comb <- p_gad / p_phq +
     )
 
 # Save ------------------------------------------------------------------------
-ggsave(p_comb,
-       file = here("analysis", "figures", "figure2_trajectories_1200dpi.png"),
-       dpi = 1200,
-       device = "png",
-       width = 8,
-       height = 10,
-       units = "in")
+
+aspect_ratio <- 638 / 835
+f_height <- 7
+f_width <- aspect_ratio * f_height
 
 ggsave(p_comb,
-       file = here("analysis", "figures", "figure2_trajectories_300dpi.png"),
-       dpi = 300,
+       file = here("analysis", "figures", "figure2_trajectories_600dpi.png"),
+       dpi = 600,
        device = "png",
-       width = 8,
-       height = 10,
+       width = f_width,
+       height = f_height,
        units = "in")
 
 ###############################################################################
-####                                                                      #####
+####                                                                     #####
 ####                          R3STEP odds ratios                          #####
 ####                                                                      #####
 ###############################################################################
@@ -280,15 +286,15 @@ p_r3step <- ggplot(or,
                                            color = "gray40"),
           plot.title.position = "plot",
           axis.title.y = element_blank(),
-          axis.text.y = element_text(color = "black"),
+          axis.text.y = element_text(color = "black", size = 11),
           axis.title.x = element_text(margin = margin(10, 0, 0, 0, "pt")),
           strip.placement = "outside",
-          strip.text = element_text(size = 10),
+          strip.text = element_text(size = 12),
           legend.justification = "right",
           legend.direction     = "horizontal",
           legend.position      = "top",
           legend.key.size      = unit(0.5, "cm"),
-          legend.text          = element_text(size = 12),
+          legend.text          = element_text(size = 11),
           legend.title         = element_blank(),
           legend.margin        = margin(0, 0.5, 0, 0, "cm")) +
     guides(color = guide_legend(nrow = 2)) +
@@ -296,12 +302,18 @@ p_r3step <- ggplot(or,
          color = "Outcome")
 
 # Save ------------------------------------------------------------------------
+
+# Use figure dimensions from OEM proofs
+aspect_ratio <- 331 / 214
+f_height <- 7
+f_width <- f_height * aspect_ratio
+
 ggsave(p_r3step,
-       file = here("analysis", "figures", "figure3_r3step_1200dpi.png"),
-       dpi = 1200,
+       file = here("analysis", "figures", "figure3_r3step_600dpi.png"),
+       dpi = 600,
        device = "png",
-       width = 9,
-       height = 8,
+       height = f_height,
+       width = f_width,
        units = "in")
 
 ggsave(p_r3step,
